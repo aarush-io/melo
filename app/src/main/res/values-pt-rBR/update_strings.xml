@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_settings_title">Verificar atualizações</string>
+    <string name="update_checking">Verificando atualizações…</string>
+    <string name="update_available">Atualização disponível</string>
+    <string name="update_installed">Versão instalada: %1$s</string>
+    <string name="update_action">Atualizar</string>
+    <string name="update_later">Mais tarde</string>
+    <string name="update_close">Fechar</string>
+    <string name="update_cancel">Cancelar</string>
+    <string name="update_retry">Tentar novamente</string>
+    <string name="update_release_page">Página da versão</string>
+    <string name="update_no_apk">Abra a página da versão para baixar esta versão.</string>
+    <string name="update_downloading">Baixando atualização</string>
+    <string name="update_progress">%1$s / %2$s MB · %3$d%%</string>
+    <string name="update_downloaded">%1$s MB baixados</string>
+    <string name="update_ready">Pronto para instalar</string>
+    <string name="update_install">Instalar</string>
+    <string name="update_install_description">O Android solicitará que você confirme a atualização. Se solicitado, permita que o Melo instale apps e volte aqui para continuar.</string>
+    <string name="update_failed_title">Atualização indisponível</string>
+    <string name="update_check_failed">Não foi possível verificar se há atualizações. Tente novamente ou abra a página da versão.</string>
+    <string name="update_download_failed">Não foi possível baixar ou verificar a atualização. Tente novamente ou abra a página da versão.</string>
+    <string name="update_current_title">Atualizado</string>
+    <string name="update_current_description">Melo %1$s. Não há uma versão mais recente disponível.</string>
+    <string name="update_notes_title">Novidades</string>
+</resources>

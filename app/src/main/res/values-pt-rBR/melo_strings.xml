@@ -1,0 +1,31 @@
+<resources>
+    <string name="melo_home_eyebrow">SOM LIGADO. MUNDO DESLIGADO.</string>
+    <string name="melo_home_title">Sua música.\nNada mais.</string>
+    <string name="melo_home_subtitle">Menos ruído. Muito mais música.</string>
+    <string name="melo_discover">Descubra músicas</string>
+    <string name="melo_intro">Feito para ouvir.</string>
+    <string name="melo_intro_sources">Spotify. YouTube Music. Seus arquivos.\nTudo em um só lugar tranquilo.</string>
+    <string name="melo_edition">MELO / MÚSICA, SIMPLIFICADA</string>
+    <string name="melo_updates_unavailable">As atualizações do Melo não estão configuradas nesta versão.</string>
+    <string name="melo_previous">Faixa anterior</string>
+    <string name="melo_next">Próxima faixa</string>
+    <string name="melo_pause">Pausar</string>
+    <string name="melo_player_description">Player do Melo: %1$s</string>
+    <string name="melo_home_compact_title">Ouça agora</string>
+    <string name="melo_cover_of">Versão de %1$s</string>
+    <string name="melo_connecting">Conectando ao dispositivo…</string>
+    <string name="melo_preparing">Preparando a reprodução…</string>
+    <string name="melo_loading_audio">Carregando áudio…</string>
+    <string name="melo_advanced">Avançado</string>
+    <string name="melo_advanced_description">Desfoque e renderização dos cantos</string>
+    <string name="melo_audio_details">Detalhes do áudio</string>
+    <string name="melo_loading_library">Carregando suas músicas…</string>
+    <string name="melo_library_error_title">Não foi possível atualizar suas músicas</string>
+    <string name="melo_retry">Tentar novamente</string>
+    <string name="melo_empty_home_title">Encontre sua próxima favorita</string>
+    <string name="melo_empty_home_body">Toque uma música ou salve uma playlist. Suas músicas aparecerão aqui.</string>
+    <string name="melo_empty_library_title">Sua coleção começa aqui</string>
+    <string name="melo_empty_library_body">Salve as músicas que você adora para encontrá-las aqui.</string>
+    <string name="melo_empty_playlists_body">Crie uma playlist para manter juntas as músicas que você quer guardar.</string>
+    <string name="melo_create_playlist">Criar playlist</string>
+</resources>

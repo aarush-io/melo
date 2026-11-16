@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diagnostics_title">Relatório de diagnóstico</string>
+    <string name="diagnostics_subtitle">Erros recentes para anexar a um relatório de bug</string>
+    <string name="diagnostics_description">O relatório lista as versões do app e do Android, os recursos incluídos no seu plano do Spotify, o tamanho da biblioteca e os erros recentes. Ele não contém nome de usuário, endereço de e-mail, senha, token nem IDs de faixas e playlists. Reproduza o problema e compartilhe o relatório.</string>
+    <string name="diagnostics_send_title">Compartilhar o relatório</string>
+    <string name="diagnostics_send_subtitle">Cole-o em uma issue do GitHub ou em uma mensagem</string>
+    <string name="diagnostics_share_action">Compartilhar</string>
+    <string name="diagnostics_copy_action">Copiar</string>
+    <string name="diagnostics_copied">Relatório copiado</string>
+    <string name="diagnostics_clear_title">Limpar erros recentes</string>
+    <string name="diagnostics_clear_subtitle">Comece com a lista vazia antes de reproduzir o problema</string>
+    <string name="diagnostics_clear_action">Limpar</string>
+    <string name="diagnostics_loading">Preparando o relatório…</string>
+</resources>
