@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="diagnostics_title">Диагностический отчёт</string>
+    <string name="diagnostics_subtitle">Последние ошибки — приложите их к отчёту о сбое</string>
+    <string name="diagnostics_description">В отчёте указаны версии приложения и Android, возможности вашего тарифа Spotify, размеры Медиатеки и последние ошибки. В нём нет имени пользователя, адреса эл. почты, пароля, токена, а также ID треков и плейлистов. Повторите проблему, затем поделитесь отчётом.</string>
+    <string name="diagnostics_send_title">Поделиться отчётом</string>
+    <string name="diagnostics_send_subtitle">Вставьте его в issue на GitHub или в сообщение</string>
+    <string name="diagnostics_share_action">Поделиться</string>
+    <string name="diagnostics_copy_action">Копировать</string>
+    <string name="diagnostics_copied">Отчёт скопирован</string>
+    <string name="diagnostics_clear_title">Очистить последние ошибки</string>
+    <string name="diagnostics_clear_subtitle">Начните с пустого списка, прежде чем повторять проблему</string>
+    <string name="diagnostics_clear_action">Очистить</string>
+    <string name="diagnostics_loading">Подготовка отчёта…</string>
+</resources>

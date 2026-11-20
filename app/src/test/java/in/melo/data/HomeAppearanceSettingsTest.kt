@@ -31,10 +31,9 @@ class HomeAppearanceSettingsTest {
         assertEquals(settings.homeDialTileStyle, restored.homeDialTileStyle)
     }
 
-    @Test fun savedManualRecommendationCountryMigratesToDeviceCountry() {
+    @Test fun savedRecommendationCountryIsDroppedAndTheRestKept() {
         val settings = AppSettings.fromJson(JSONObject("""{"youtubeContentCountry":"US","language":"fr"}"""))
-        assertEquals(AppSettings.YOUTUBE_COUNTRY_DEVICE, settings.youtubeContentCountry)
-        assertEquals(AppSettings.YOUTUBE_COUNTRY_DEVICE, settings.toJson().getString("youtubeContentCountry"))
+        assertFalse(settings.toJson().has("youtubeContentCountry"))
         assertEquals("fr", settings.language)
     }
 }

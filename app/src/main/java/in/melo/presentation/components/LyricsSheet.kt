@@ -1136,7 +1136,7 @@ fun LyricsSheet(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = "Show Controls"
+                    contentDescription = stringResource(R.string.lyrics_show_controls)
                 )
             }
         }
@@ -2061,7 +2061,7 @@ private fun LyricsTrackInfo(
         SmartImage(
             model = song.albumArtUriString ?: R.drawable.rounded_album_24,
             shape = albumShape,
-            contentDescription = "Cover Art",
+            contentDescription = stringResource(R.string.common_album_art),
             modifier = Modifier
                 .size(66.dp)
                 .padding(MeloLayout.Space2)

@@ -128,6 +128,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import `in`.melo.presentation.components.WavyArcSlider
+import `in`.melo.presentation.components.presetLabel
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.rounded.Edit // Added
@@ -492,7 +493,7 @@ private fun PresetTabsRow(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = preset.displayName,
+                        text = presetLabel(preset),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (selectedIndex == index) FontWeight.Bold else FontWeight.Medium
                     )
@@ -565,7 +566,7 @@ private fun BandSlidersSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
             ) {
                  val isCustomOrSaved = editingPresetName != null || currentPreset.name == "custom" || currentPreset.isCustom
-                 val displayLabel = editingPresetName ?: currentPreset.displayName
+                 val displayLabel = editingPresetName ?: presetLabel(currentPreset)
                  
                  Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,

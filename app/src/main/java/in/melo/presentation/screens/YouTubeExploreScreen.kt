@@ -404,7 +404,7 @@ private fun ExplorePlaylistTile(item: Music, onClick: () -> Unit, onLongClick: (
         }
         Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(
-            item.subtitle.ifBlank { item.kind.label },
+            item.subtitle.ifBlank { stringResource(item.kind.labelRes) },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="melo_home_eyebrow">ЗВУК ВКЛ. МИР ВЫКЛ.</string>
+    <string name="melo_home_title">Ваша музыка.\nНичего лишнего.</string>
+    <string name="melo_home_subtitle">Чуть меньше шума. Гораздо больше музыки.</string>
+    <string name="melo_discover">Найти музыку</string>
+    <string name="melo_intro">Создано для музыки.</string>
+    <string name="melo_intro_sources">Spotify. YouTube Music. SoundCloud. Ваши файлы.\nВсё в одном тихом месте.</string>
+    <string name="melo_edition">MELO / ПРОСТО МУЗЫКА</string>
+    <string name="melo_updates_unavailable">Обновления Melo не настроены для этой сборки.</string>
+    <string name="melo_previous">Предыдущий трек</string>
+    <string name="melo_next">Следующий трек</string>
+    <string name="melo_pause">Пауза</string>
+    <string name="melo_player_description">Плеер Melo: %1$s</string>
+    <string name="melo_home_compact_title">Слушать сейчас</string>
+    <string name="melo_cover_of">Обложка: %1$s</string>
+    <string name="melo_connecting">Подключение к устройству…</string>
+    <string name="melo_preparing">Подготовка к воспроизведению…</string>
+    <string name="melo_loading_audio">Загрузка аудио…</string>
+    <string name="melo_advanced">Дополнительно</string>
+    <string name="melo_advanced_description">Размытие и скругление углов</string>
+    <string name="melo_audio_details">Сведения об аудио</string>
+    <string name="melo_loading_library">Загрузка музыки…</string>
+    <string name="melo_library_error_title">Не удалось обновить музыку</string>
+    <string name="melo_retry">Повторить</string>
+    <string name="melo_empty_home_title">Найдите новый любимый трек</string>
+    <string name="melo_empty_home_body">Включите трек или сохраните плейлист — ваша музыка появится здесь.</string>
+    <string name="melo_empty_library_title">Здесь начнётся ваша коллекция</string>
+    <string name="melo_empty_library_body">Сохраняйте любимую музыку, и она появится здесь.</string>
+    <string name="melo_empty_playlists_body">Создайте плейлист, чтобы собрать нужные треки вместе.</string>
+    <string name="melo_create_playlist">Создать плейлист</string>
+</resources>

@@ -94,6 +94,13 @@ if (nativeRuntime) {
     tasks.named("preBuild").configure { dependsOn(bootstrap) }
 }
 
+// Display texts follow the default locale (track counts, radio titles, sizes): tests expect
+// English whatever the machine's language, unless they pick a language themselves.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+}
+
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-analytics")

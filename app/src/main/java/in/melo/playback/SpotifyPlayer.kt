@@ -301,7 +301,7 @@ class SpotifyPlayer(context: Context, scope: CoroutineScope) : AutoCloseable {
             ?: queue.getOrNull(index)?.durationMs?.toLong() ?: 0
         val error = player.playerError?.let { failure ->
             generateSequence<Throwable>(failure) { it.cause }.take(12)
-                .firstOrNull { it is SpotifyFailure || it is `in`.melo.data.youtube.YouTubeFailure }?.message
+                .firstOrNull { it is SpotifyFailure || it is `in`.melo.data.youtube.YouTubeFailure || it is `in`.melo.data.soundcloud.SoundCloudFailure }?.message
                 ?: if (!`in`.melo.data.NetworkMonitor.online.value) "This track is not available offline."
                 else playbackErrorMessage(failure.errorCode)
         }
@@ -351,7 +351,8 @@ internal fun playbackErrorMessage(code: Int): String = when (code) {
     else -> "This track cannot be played. Try again or pick another track."
 }
 private fun Music.isPlayableTrack(): Boolean = kind == MusicKind.Track &&
-    (id.startsWith("spotify:track:") || id.startsWith(`in`.melo.data.youtube.YTM_TRACK_PREFIX) || (isLocalTrack && mediaUri != null))
+    (id.startsWith("spotify:track:") || id.startsWith(`in`.melo.data.youtube.YTM_TRACK_PREFIX) ||
+        id.startsWith(`in`.melo.data.soundcloud.SC_TRACK_PREFIX) || (isLocalTrack && mediaUri != null))
 
 /** Set on the tracks the user queued ("Add to queue", "Play next"). */
 private const val QUEUED = "queued"
@@ -359,12 +360,13 @@ private fun MediaItem.isQueued(): Boolean = mediaMetadata.extras?.getBoolean(QUE
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 private fun mediaItem(track: Music, queued: Boolean = false): MediaItem {
-    // YouTube Music tracks, and Spotify tracks without a Spotify account, are read from YouTube Music.
-    val youtube = YouTubeUris.of(track, `in`.melo.data.SpotifyAccount.signedIn)
-    val spotify = youtube == null && !track.isLocalTrack
+    // SoundCloud tracks are read from SoundCloud; YouTube Music tracks, and Spotify tracks without a
+    // Spotify account, from YouTube Music.
+    val direct = DirectUris.of(track, `in`.melo.data.SpotifyAccount.signedIn)
+    val spotify = direct == null && !track.isLocalTrack
     return MediaItem.Builder().setMediaId(track.id)
-        .setUri(youtube ?: track.mediaUri?.let(Uri::parse) ?: Uri.parse(track.id))
-        .apply { if (youtube != null) setCustomCacheKey(YouTubeUris.cacheKey(track.id)) }
+        .setUri(direct ?: track.mediaUri?.let(Uri::parse) ?: Uri.parse(track.id))
+        .apply { if (direct != null) setCustomCacheKey(DirectUris.cacheKey(track.id)) }
         .apply { if (spotify) setMimeType(MimeTypes.APPLICATION_M3U8) }
         .apply { if (!BuildConfig.NATIVE_RUNTIME && spotify) setDrmConfiguration(MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
             .setLicenseUri("https://spclient.wg.spotify.com/widevine-license/v1/audio/license")

@@ -32,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import `in`.melo.BottomNavItem
 import `in`.melo.data.preferences.NavBarStyle
@@ -167,7 +168,21 @@ private fun PlayerInternalNavigationItemsRow(
                 null
             } else {
                 remember(localizedLabel) {
-                    { Text(localizedLabel) }
+                    {
+                        // Longer translations ("Bibliothèque", "Медиатека") must not wrap mid-word on narrow
+                        // screens or at large font scales: keep one line and shrink the text to fit instead.
+                        val maxFontSize = androidx.compose.material3.LocalTextStyle.current.fontSize
+                        Text(
+                            localizedLabel,
+                            maxLines = 1,
+                            softWrap = false,
+                            autoSize = if (maxFontSize.isSp) androidx.compose.foundation.text.TextAutoSize.StepBased(
+                                minFontSize = 8.sp,
+                                maxFontSize = maxFontSize,
+                                stepSize = 0.5.sp,
+                            ) else null,
+                        )
+                    }
                 }
             }
             val onClickLambda: () -> Unit = remember(item.screen.route, navController, scope) {

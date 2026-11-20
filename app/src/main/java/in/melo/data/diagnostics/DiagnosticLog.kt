@@ -106,7 +106,7 @@ object DiagnosticLog {
 
     /** Addresses and content identifiers stay out of the report. */
     private fun scrub(text: String): String = text.replace(Regex("""https?://\S+"""), "<url>")
-        .replace(Regex("""(spotify|ytm):[a-z]+:\S+"""), "<id>").replace(Regex("""[0-9a-fA-F]{32,}"""), "<hex>")
+        .replace(Regex("""(spotify|ytm|sc):[a-z]+:\S+"""), "<id>").replace(Regex("""[0-9a-fA-F]{32,}"""), "<hex>")
 
     fun lines(): List<String> = synchronized(entries) { entries.toList() }
 

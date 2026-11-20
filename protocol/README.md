@@ -33,6 +33,7 @@ Obfuscated class names (`p.xxxx`) and code offsets are specific to this build. S
 | [10-spotify-connect.md](10-spotify-connect.md) | Connect state and device control |
 | [11-official-client-measurements.md](11-official-client-measurements.md) | Runtime measurements of the official app (buffering, decoders, traffic) |
 | [12-public-apis.md](12-public-apis.md) | Public SDKs and Web API, and how they differ from the internal services |
+| [13-soundcloud.md](13-soundcloud.md) | SoundCloud api-v2 as Melo uses it: client id, catalog, streams, and how HLS segments become one progressive file |
 | [reproduce.md](reproduce.md) | Tools and commands to check the static observations |
 
 ## Conventions

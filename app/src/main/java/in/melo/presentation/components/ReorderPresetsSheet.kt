@@ -350,7 +350,7 @@ fun ReorderPresetsSheet(
                                                 Spacer(modifier = Modifier.width(MeloLayout.Space4))
 
                                                 Text(
-                                                    text = item.preset.displayName,
+                                                    text = presetLabel(item.preset),
                                                     style = MaterialTheme.typography.bodyLarge,
                                                     fontWeight = if (item.isPinned) FontWeight.Medium else FontWeight.Normal,
                                                     modifier = Modifier.weight(1f),

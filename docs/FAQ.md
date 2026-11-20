@@ -40,6 +40,14 @@ Yes. Saved tracks, albums, followed artists and playlists use the same services 
 
 Yes. Connect a Google account in Settings → Accounts: your YouTube Music playlists appear in the library and stay synced with the account, and new playlists can be created there. The YouTube Music catalog still plays without an account.
 
+## Can I listen to SoundCloud?
+
+Yes, without an account. Choose SoundCloud in search, or paste a SoundCloud link, to find tracks, playlists, albums and artists. To see your likes and playlists, link your public profile by name or link in Settings → Accounts: no password is asked and nothing is posted. Tracks SoundCloud only streams as a 30-second preview (Go+) or protects play from their YouTube Music match.
+
+## Is Melo available in other languages?
+
+Melo follows the phone's language in English, French and Russian. Settings → Appearance → App Language picks another one for the app.
+
 ## Can I move a playlist from Spotify to YouTube Music?
 
 Yes. On the playlist's page, ⋮ → Convert to…, then choose Spotify, YouTube Music or a multi-service playlist. Melo looks up each track on the destination, highlights the matches it is not sure of, and lets you change or leave out any track before creating the playlist.

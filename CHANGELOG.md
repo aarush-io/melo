@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add SoundCloud: search, tracks, playlists, albums, artists and stations without an account, with downloads and offline cache. Link a public profile to see its likes and playlists.
+- Add a Russian translation.
+- Keep bottom navigation labels on one line on narrow screens and at large font sizes.
+
 ## Melo 1.2.0
 
 ### Home

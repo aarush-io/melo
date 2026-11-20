@@ -1,5 +1,6 @@
 package `in`.melo.data
 
+import `in`.melo.data.soundcloud.SC_TRACK_PREFIX
 import `in`.melo.data.youtube.MatchQuery
 import `in`.melo.data.youtube.TrackMatcher
 import `in`.melo.data.youtube.YTM_PLAYLIST_PREFIX
@@ -111,7 +112,8 @@ object ConversionMatching {
      * "Artist 'Title' Official MV", "Title / Титул". Other titles are returned as they are.
      */
     fun songTitle(track: Music): String {
-        if (!track.id.startsWith(YTM_TRACK_PREFIX)) return track.title
+        // SoundCloud uploads are named like YouTube videos: "Artist - Title (Free Download)".
+        if (!track.id.startsWith(YTM_TRACK_PREFIX) && !track.id.startsWith(SC_TRACK_PREFIX)) return track.title
         var title = track.title.substringBefore(" | ").trim()
         QUOTED.find(title)?.let { quoted ->
             val inside = quoted.groupValues.drop(1).first(String::isNotEmpty)

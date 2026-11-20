@@ -582,7 +582,7 @@ class PlayerViewModel(val model: MeloModel, private val scope: CoroutineScope) {
                 val throughSpotify = `in`.melo.data.SpotifyAccount.signedIn && all.any { it.id.startsWith("spotify:track:") }
                 val allowed = !throughSpotify || model.offlineAllowed()
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                val tracks = if (allowed) all else all.filter { it.source == `in`.melo.data.MusicSource.YouTubeMusic }
+                val tracks = if (allowed) all else all.filter { it.source == `in`.melo.data.MusicSource.YouTubeMusic || it.source == `in`.melo.data.MusicSource.SoundCloud }
                 if (tracks.isEmpty()) { sendToast(context.getString(R.string.download_not_allowed)); return@launch }
                 DownloadCenter.enqueue(context, item, tracks) {
                     sendToast(context.getString(R.string.download_failed, item.title))

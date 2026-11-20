@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="source_soundcloud">SoundCloud</string>
+    <string name="search_source_soundcloud">SoundCloud</string>
+    <string name="soundcloud_search_failed">Поиск в SoundCloud сейчас недоступен.</string>
+    <string name="soundcloud_likes_title">Лайки в SoundCloud</string>
+    <string name="soundcloud_page_failed">Не удалось загрузить эту страницу SoundCloud.</string>
+    <string name="soundcloud_profile_not_found">Профиль SoundCloud с таким именем или ссылкой не найден.</string>
+    <string name="soundcloud_unreachable">SoundCloud сейчас недоступен. Попробуйте позже.</string>
+    <string name="soundcloud_not_found">Этого нет в SoundCloud.</string>
+    <string name="soundcloud_track_unavailable">SoundCloud не транслирует этот трек.</string>
+    <string name="soundcloud_nothing_similar">SoundCloud не нашёл ничего похожего.</string>
+    <string name="soundcloud_rate_limited">SoundCloud ограничивает запросы. Повторите через минуту.</string>
+    <string name="soundcloud_failed">SoundCloud не ответил. Повторите попытку.</string>
+    <string name="soundcloud_link_title">Привязать профиль SoundCloud</string>
+    <string name="soundcloud_link_subtitle">Лайки и плейлисты из вашего публичного профиля. Без пароля.</string>
+    <string name="soundcloud_link_body">Введите имя профиля или ссылку на него. Melo читает только то, что видно в публичном профиле: ничего не публикует и не спрашивает пароль.</string>
+    <string name="soundcloud_link_hint">Имя профиля или ссылка</string>
+    <string name="soundcloud_link_action">Привязать</string>
+    <string name="soundcloud_linked_subtitle">soundcloud.com/%1$s · Нажмите, чтобы обновить лайки и плейлисты</string>
+    <string name="soundcloud_reading">Читаем лайки и плейлисты…</string>
+    <string name="soundcloud_unlink_title">Отвязать SoundCloud</string>
+    <string name="soundcloud_unlink_subtitle">Удаляет профиль и его лайки с этого устройства. В SoundCloud ничего не меняется.</string>
+</resources>

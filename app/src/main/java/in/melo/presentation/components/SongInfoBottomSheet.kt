@@ -147,6 +147,8 @@ fun SongInfoBottomSheet(
     val spotifyPages = song.source == `in`.melo.data.MusicSource.Spotify && discovery.spotifyEnabled
     // Albums and artists open on Spotify with an account, on YouTube Music otherwise (issue #8).
     val catalogPages = !song.isLocal
+    // SoundCloud tracks are liked on the device, start a SoundCloud station, and have no album page.
+    val soundCloud = song.source == `in`.melo.data.MusicSource.SoundCloud
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier
@@ -161,7 +163,7 @@ fun SongInfoBottomSheet(
                 isFavorite = isFavorite,
                 onPlaySong = { onPlaySong(); onDismiss() },
                 // YouTube Music tracks are liked on the device (and on the Google account when there is one).
-                onToggleFavorite = if (spotifyPages || song.source == `in`.melo.data.MusicSource.YouTubeMusic) onToggleFavorite else null,
+                onToggleFavorite = if (spotifyPages || soundCloud || song.source == `in`.melo.data.MusicSource.YouTubeMusic) onToggleFavorite else null,
                 onShareClick = if (song.isLocal) null else ({ context.shareMusic(song.toMusic()) }),
                 playButtonShape = MeloLayout.PillShape,
                 evenCornerRadiusElems = 26.dp
@@ -170,7 +172,7 @@ fun SongInfoBottomSheet(
             RadioAndPinRow(
                 item = song.toMusic(),
                 playerViewModel = playerViewModel,
-                onStartRadio = if (spotifyPages) onStartRadio else null,
+                onStartRadio = if (spotifyPages || soundCloud) onStartRadio else null,
             )
             onRemoveFromPlaylist?.let { remove ->
                 MeloButton(
@@ -194,7 +196,7 @@ fun SongInfoBottomSheet(
                 icon = Icons.Rounded.Album,
                 iconDescription = stringResource(R.string.song_info_album_label),
                 shape = infoShape,
-                onClick = if (catalogPages) onNavigateToAlbum else null,
+                onClick = if (catalogPages && !soundCloud) onNavigateToAlbum else null,
             )
             SongInfoSegmentedListItem(
                 headline = stringResource(R.string.song_info_artist_label),
@@ -334,7 +336,7 @@ fun EntityOptionsSheet(
             OptionsSheetHeader(
                 artwork = item.imageUrl,
                 title = item.title,
-                subtitle = item.subtitle.ifBlank { item.kind.label },
+                subtitle = item.subtitle.ifBlank { stringResource(item.kind.labelRes) },
                 artShape = if (item.kind == MusicKind.Artist) CircleShape else MeloLayout.ArtworkShape,
             )
             Row1Actions(

@@ -77,6 +77,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -188,9 +189,11 @@ fun SettingsScreen(model: MeloModel, navController: NavHostController) {
         CategoryRow(stringResource(R.string.settings_category_backup_title), stringResource(R.string.settings_category_backup_subtitle), Icons.Rounded.Backup) { open("backup") }
         val discovery by model.discovery.collectAsStateWithLifecycle()
         val google by model.youTubeAccount.collectAsStateWithLifecycle()
+        val soundCloud by model.soundCloudProfile.collectAsStateWithLifecycle()
         CategoryRow(stringResource(R.string.settings_accounts_title),
             listOfNotNull(stringResource(R.string.search_source_spotify).takeIf { discovery.spotifyEnabled },
-                stringResource(R.string.search_source_youtube).takeIf { google != null })
+                stringResource(R.string.search_source_youtube).takeIf { google != null },
+                stringResource(R.string.search_source_soundcloud).takeIf { soundCloud != null })
                 .joinToString(" · ").ifEmpty { stringResource(R.string.settings_account_guest_subtitle) },
             Icons.AutoMirrored.Rounded.Logout) { open("account") }
         val context = LocalContext.current
@@ -254,7 +257,7 @@ private fun AppearanceSettings(model: MeloModel, navController: NavHostControlle
                 description = stringResource(R.string.settings_app_language_subtitle),
                 options = mapOf(
                     AppSettings.LANGUAGE_SYSTEM to stringResource(R.string.settings_language_system),
-                    "fr" to "Français", "en" to "English",
+                    "fr" to "Français", "en" to "English", "ru" to "Русский",
                 ),
                 selectedKey = s.language,
                 onSelectionChanged = { key -> update { it.copy(language = key) }; AppLocales.apply(context, key) },
@@ -307,7 +310,7 @@ private fun AppearanceSettings(model: MeloModel, navController: NavHostControlle
             ThemeSelectorItem(
                 label = stringResource(R.string.settings_album_art_palette_title),
                 description = stringResource(R.string.settings_album_art_palette_subtitle),
-                options = AlbumArtPaletteStyle.entries.associate { it.storageKey to it.label },
+                options = AlbumArtPaletteStyle.entries.associate { it.storageKey to stringResource(it.labelRes) },
                 selectedKey = s.palette,
                 onSelectionChanged = { key -> update { it.copy(palette = key) } },
                 leadingIcon = { Icon(Icons.Outlined.Style, null, tint = MaterialTheme.colorScheme.secondary) },
@@ -332,7 +335,7 @@ private fun AppearanceSettings(model: MeloModel, navController: NavHostControlle
             ThemeSelectorItem(
                 label = stringResource(R.string.settings_collage_pattern_title),
                 description = stringResource(R.string.settings_collage_pattern_subtitle),
-                options = CollagePattern.entries.associate { it.storageKey to it.label },
+                options = CollagePattern.entries.associate { it.storageKey to stringResource(it.labelRes) },
                 selectedKey = s.collagePattern,
                 onSelectionChanged = { key -> update { it.copy(collagePattern = key) } },
                 leadingIcon = { Icon(painterResource(R.drawable.rounded_view_column_24), null, tint = MaterialTheme.colorScheme.secondary) },
@@ -471,10 +474,20 @@ private fun BehaviorSettings(model: MeloModel, navController: NavHostController)
     }
 }
 
-internal fun formatSize(bytes: Long): String = when {
-    bytes >= 1L shl 30 -> String.format(java.util.Locale.getDefault(), "%.1f Go", bytes / (1L shl 30).toDouble())
-    bytes >= 1L shl 20 -> String.format(java.util.Locale.getDefault(), "%.0f Mo", bytes / (1L shl 20).toDouble())
-    else -> "${bytes / 1024} Ko"
+internal fun formatSize(bytes: Long): String = formatSize(bytes, java.util.Locale.getDefault())
+
+/** A storage size with the unit names of [locale]: Go/Mo/Ko in French, ГБ/МБ/КБ in Russian, GB/MB/KB otherwise. */
+internal fun formatSize(bytes: Long, locale: java.util.Locale): String {
+    val (giga, mega, kilo) = when (locale.language) {
+        "fr" -> Triple("Go", "Mo", "Ko")
+        "ru" -> Triple("ГБ", "МБ", "КБ")
+        else -> Triple("GB", "MB", "KB")
+    }
+    return when {
+        bytes >= 1L shl 30 -> String.format(locale, "%.1f %s", bytes / (1L shl 30).toDouble(), giga)
+        bytes >= 1L shl 20 -> String.format(locale, "%.0f %s", bytes / (1L shl 20).toDouble(), mega)
+        else -> "${bytes / 1024} $kilo"
+    }
 }
 
 @Composable
@@ -678,7 +691,100 @@ private fun AccountSettings(model: MeloModel, navController: NavHostController) 
                 )
             }
         }
+        SoundCloudAccountSection(model)
     }
+}
+
+/** A public SoundCloud profile, linked by name or address: its likes and playlists show in the library. */
+@Composable
+private fun SoundCloudAccountSection(model: MeloModel) {
+    val profile by model.soundCloudProfile.collectAsStateWithLifecycle()
+    val loading by model.soundCloudLoading.collectAsStateWithLifecycle()
+    var linking by remember { mutableStateOf(false) }
+    SettingsSection(title = stringResource(R.string.search_source_soundcloud), icon = {}) {
+        val linked = profile
+        if (linked == null) SettingsItem(
+            title = stringResource(R.string.soundcloud_link_title),
+            subtitle = stringResource(R.string.soundcloud_link_subtitle),
+            leadingIcon = { Icon(painterResource(R.drawable.ic_source_soundcloud), null, tint = MaterialTheme.colorScheme.secondary) },
+            onClick = { linking = true },
+        ) else Column(verticalArrangement = Arrangement.spacedBy(MeloLayout.Space1)) {
+            SettingsItem(
+                title = linked.username,
+                subtitle = if (loading) stringResource(R.string.soundcloud_reading) else stringResource(R.string.soundcloud_linked_subtitle, linked.permalink),
+                leadingIcon = {
+                    if (!linked.avatarUrl.isNullOrBlank()) coil.compose.AsyncImage(linked.avatarUrl, null, Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape))
+                    else Icon(painterResource(R.drawable.ic_source_soundcloud), null, tint = MaterialTheme.colorScheme.secondary)
+                },
+                onClick = { model.refreshSoundCloudLibrary(report = true) },
+            )
+            SettingsItem(
+                title = stringResource(R.string.soundcloud_unlink_title),
+                subtitle = stringResource(R.string.soundcloud_unlink_subtitle),
+                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Logout, null, tint = MaterialTheme.colorScheme.error) },
+                onClick = { model.unlinkSoundCloud() },
+            )
+        }
+    }
+    if (linking) SoundCloudLinkDialog(model, onDismiss = { linking = false })
+}
+
+@Composable
+private fun SoundCloudLinkDialog(model: MeloModel, onDismiss: () -> Unit) {
+    var input by rememberSaveable { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    fun submit() {
+        if (input.isBlank() || busy) return
+        busy = true
+        error = null
+        model.linkSoundCloud(input.trim()) { failure ->
+            busy = false
+            if (failure == null) onDismiss() else error = failure
+        }
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(stringResource(R.string.soundcloud_link_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(MeloLayout.Space2)) {
+                Text(stringResource(R.string.soundcloud_link_body), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.material3.OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it; error = null },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !busy,
+                    label = { Text(stringResource(R.string.soundcloud_link_hint)) },
+                    isError = error != null,
+                    supportingText = error?.let { message -> { Text(message) } },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { submit() }),
+                )
+            }
+        },
+        confirmButton = {
+            MeloButton(
+                text = stringResource(R.string.soundcloud_link_action),
+                onClick = { submit() },
+                enabled = input.isNotBlank() && !busy,
+                size = MeloButtonSize.Medium,
+            )
+        },
+        dismissButton = {
+            MeloButton(
+                text = stringResource(R.string.action_cancel),
+                onClick = onDismiss,
+                enabled = !busy,
+                size = MeloButtonSize.Medium,
+                style = MeloButtonStyle.Text,
+            )
+        },
+    )
 }
 
 @Composable

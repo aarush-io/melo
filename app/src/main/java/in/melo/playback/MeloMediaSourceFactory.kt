@@ -7,7 +7,7 @@ import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 
-/** Spotify tracks keep their native HLS path; YouTube Music streams and device files are progressive. */
+/** Spotify tracks keep their native HLS path; YouTube Music and SoundCloud streams and device files are progressive. */
 @UnstableApi
 internal class MeloMediaSourceFactory(
     private val spotify: MediaSource.Factory,
@@ -26,7 +26,7 @@ internal class MeloMediaSourceFactory(
     override fun createMediaSource(mediaItem: MediaItem): MediaSource =
         when (mediaItem.localConfiguration?.uri?.scheme) {
             "spotify" -> spotify.createMediaSource(mediaItem)
-            YouTubeUris.SCHEME -> youtube.createMediaSource(mediaItem)
+            YouTubeUris.SCHEME, SoundCloudUris.SCHEME -> youtube.createMediaSource(mediaItem)
             else -> files.createMediaSource(mediaItem)
         }
 }

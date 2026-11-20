@@ -87,12 +87,12 @@ object DownloadCenter {
             .setUpstreamDataSourceFactory(recent).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_FOR_UNSET_LENGTH_REQUESTS)
         val executor = Executors.newFixedThreadPool(2)
         val spotifyDownloads = DefaultDownloaderFactory(writer, executor)
-        // YouTube Music files have no length before they are opened: their own chain writes them whole.
+        // YouTube Music and SoundCloud files have no length before they are opened: their own chain writes them whole.
         val youtubeWriter = CacheDataSource.Factory().setCache(cache(application)).setCacheKeyFactory(AudioCache.keys)
             .setUpstreamDataSourceFactory(CacheDataSource.Factory().setCache(AudioCache.cache(application)).setCacheKeyFactory(AudioCache.keys)
-                .setCacheWriteDataSinkFactory(null).setUpstreamDataSourceFactory(YouTubeDataSource.Factory(application)))
+                .setCacheWriteDataSinkFactory(null).setUpstreamDataSourceFactory(DirectDataSourceFactory(application)))
         val downloaders = DownloaderFactory { request ->
-            if (request.uri.scheme == YouTubeUris.SCHEME) ProgressiveDownloader(
+            if (DirectUris.isDirect(request.uri)) ProgressiveDownloader(
                 MediaItem.Builder().setUri(request.uri).setCustomCacheKey(request.customCacheKey).build(), youtubeWriter, executor,
             ) else spotifyDownloads.createDownloader(request)
         }
@@ -238,9 +238,10 @@ object DownloadCenter {
         val context = checkNotNull(app)
         try {
             withContext(Dispatchers.IO) { AudioIndex.get(context).describe(track, played = false) }
-            // YouTube Music tracks, and Spotify tracks without an account, are kept as their YouTube Music file.
-            YouTubeUris.of(track, SpotifyAccount.signedIn)?.let { uri ->
-                val request = DownloadRequest.Builder(track.id, uri).setCustomCacheKey(YouTubeUris.cacheKey(track.id))
+            // SoundCloud tracks are kept as their SoundCloud file; YouTube Music tracks, and Spotify tracks
+            // without an account, as their YouTube Music file.
+            DirectUris.of(track, SpotifyAccount.signedIn)?.let { uri ->
+                val request = DownloadRequest.Builder(track.id, uri).setCustomCacheKey(DirectUris.cacheKey(track.id))
                     .setData(encodePins(listOf(track)).toByteArray()).build()
                 if (records.values.any { record -> record.tracks.any { it.id == track.id } }) {
                     current.addDownload(request)

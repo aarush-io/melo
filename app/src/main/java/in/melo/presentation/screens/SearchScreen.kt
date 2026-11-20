@@ -6,6 +6,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -251,7 +252,11 @@ fun SearchScreen(
                 } else {
                     // Everything at once by default; one catalogue, or the device, when the choice is shown (Settings → Behavior).
                     val sources = `in`.melo.SearchSource.entries.filter { it != `in`.melo.SearchSource.Spotify || discovery.spotifyEnabled }
-                    if (showSources) SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp, start = 8.dp, end = 8.dp)) {
+                    // Five services do not fit a phone's width in every language: the row scrolls when it has to.
+                    if (showSources) androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 8.dp, start = 8.dp, end = 8.dp)) {
+                    val fits = maxWidth >= SOURCE_SEGMENT_MIN_WIDTH * sources.size
+                    SingleChoiceSegmentedButtonRow(if (fits) Modifier.fillMaxWidth()
+                        else Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())) {
                         sources.forEachIndexed { index, source ->
                             SegmentedButton(
                                 selected = discovery.activeSource == source,
@@ -263,10 +268,12 @@ fun SearchScreen(
                                     `in`.melo.SearchSource.All -> R.string.search_source_all
                                     `in`.melo.SearchSource.Spotify -> R.string.search_source_spotify
                                     `in`.melo.SearchSource.YouTubeMusic -> R.string.search_source_youtube_short
+                                    `in`.melo.SearchSource.SoundCloud -> R.string.search_source_soundcloud
                                     `in`.melo.SearchSource.Local -> R.string.search_source_device
                                 }), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                         }
+                    }
                     }
                     FlowRow(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 8.dp),
@@ -363,3 +370,6 @@ fun SearchScreen(
     SongOptionsHost(ui, navController, selected, emptyList(), searchQuery) { selected = null }
     MusicOptionsHost(ui, navController, optionsFor) { optionsFor = null }
 }
+
+/** Narrowest a search source segment can be before the row scrolls instead. */
+private val SOURCE_SEGMENT_MIN_WIDTH = 92.dp

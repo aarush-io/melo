@@ -153,6 +153,7 @@ fun HomeScreen(model: MeloModel, navController: NavHostController, paddingValues
     val settings by ui.settings.collectAsStateWithLifecycle()
     val localPlaylists by model.localPlaylists.collectAsStateWithLifecycle()
     val youTubePlaylists by model.youTubePlaylists.collectAsStateWithLifecycle()
+    val soundCloudPlaylists by model.soundCloudPlaylists.collectAsStateWithLifecycle()
     val youTubeAccount by model.youTubeAccount.collectAsStateWithLifecycle()
     val localBadge = stringResource(R.string.badge_local)
     val playlistsTitle = stringResource(R.string.home_playlists)
@@ -700,7 +701,7 @@ fun HomeScreen(model: MeloModel, navController: NavHostController, paddingValues
                         }
                     }
                     val hasListeningContent = pins.isNotEmpty() || recent.isNotEmpty() || localFiles.isNotEmpty() ||
-                        localPlaylists.isNotEmpty() || youTubePlaylists.isNotEmpty() || downloads.isNotEmpty() ||
+                        localPlaylists.isNotEmpty() || youTubePlaylists.isNotEmpty() || soundCloudPlaylists.isNotEmpty() || downloads.isNotEmpty() ||
                         content?.let { it.savedTrackCount > 0 || it.playlists.isNotEmpty() || it.albums.isNotEmpty() || it.artists.isNotEmpty() } == true
                     if (!hasListeningContent && !library.loading && library.error == null) {
                         item(key = "empty_home") {
@@ -729,7 +730,7 @@ fun HomeScreen(model: MeloModel, navController: NavHostController, paddingValues
                             HomeShelf.RECENT -> recent to null
                             HomeShelf.DOWNLOADS -> downloads.values.filter { it.isComplete }.map { it.collection.item } to openTab(`in`.melo.data.model.LibraryTabId.DOWNLOADS)
                             HomeShelf.LIKED -> emptyList<Music>() to null
-                            HomeShelf.PLAYLISTS -> (multi + youTubePlaylists + content?.playlists.orEmpty()) to openTab(`in`.melo.data.model.LibraryTabId.PLAYLISTS)
+                            HomeShelf.PLAYLISTS -> (multi + youTubePlaylists + soundCloudPlaylists + content?.playlists.orEmpty()) to openTab(`in`.melo.data.model.LibraryTabId.PLAYLISTS)
                             HomeShelf.MULTI_SERVICE -> multi to openTab(`in`.melo.data.model.LibraryTabId.PLAYLISTS)
                             HomeShelf.SPOTIFY_PLAYLISTS -> content?.playlists.orEmpty() to openTab(`in`.melo.data.model.LibraryTabId.PLAYLISTS)
                             HomeShelf.YOUTUBE_PLAYLISTS -> youTubePlaylists to openTab(`in`.melo.data.model.LibraryTabId.PLAYLISTS)
@@ -1010,7 +1011,7 @@ private fun PinnedPill(
                     color = title
                 )
                 Text(
-                    text = item.subtitle.ifBlank { item.kind.label },
+                    text = item.subtitle.ifBlank { stringResource(item.kind.labelRes) },
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Player -->
+    <string name="common_repeat">Repeat</string>
+    <string name="common_favorite">Favorite</string>
+    <string name="lyrics_show_controls">Show controls</string>
+    <string name="player_playback_position">Playback position</string>
+    <string name="album_art_placeholder">%1$s placeholder</string>
+
+    <!-- Cast -->
+    <string name="cast_manage_radios">Manage active radios and rescan</string>
+    <string name="cast_tap_to_connect">Tap to connect</string>
+    <string name="cast_no_devices">No devices yet</string>
+
+    <!-- Library -->
+    <string name="library_playlist_view">Playlist View</string>
+
+    <!-- Podcasts -->
+    <string name="podcast_search_failed">Podcast search failed.</string>
+    <string name="podcast_load_failed">This podcast could not be loaded.</string>
+
+    <!-- Music kinds -->
+    <string name="kind_track">Track</string>
+
+    <!-- Album art palette styles -->
+    <string name="palette_style_tonal_spot">Tonal Spot</string>
+    <string name="palette_style_vibrant">Vibrant</string>
+    <string name="palette_style_expressive">Expressive</string>
+    <string name="palette_style_fruit_salad">Fruit Salad</string>
+
+    <!-- Collage patterns -->
+    <string name="collage_pattern_cosmic_swirl">Cosmic Swirl</string>
+    <string name="collage_pattern_honeycomb_groove">Honeycomb Groove</string>
+    <string name="collage_pattern_vinyl_stack">Vinyl Stack</string>
+    <string name="collage_pattern_pixel_mosaic">Pixel Mosaic</string>
+    <string name="collage_pattern_stardust_scatter">Stardust Scatter</string>
+
+    <!-- Equalizer presets (rendered uppercase) -->
+    <string name="eq_preset_flat">Flat</string>
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_hip_hop">Hip hop</string>
+    <string name="eq_preset_jazz">Jazz</string>
+    <string name="eq_preset_classical">Classical</string>
+    <string name="eq_preset_electronic">Electronic</string>
+    <string name="eq_preset_bass_boost">Bass boost</string>
+    <string name="eq_preset_treble_boost">Treble boost</string>
+    <string name="eq_preset_vocal">Vocal</string>
+    <string name="eq_preset_custom">Custom</string>
+</resources>

@@ -111,6 +111,7 @@ fun PodcastsScreen(model: MeloModel, navController: NavHostController, paddingVa
     val feedLoading = podcastState.loading
     val refreshing = podcastState.refreshing
     val loadingMore = podcastState.loadingMore
+    val searchFailedMessage = stringResource(R.string.podcast_search_failed)
 
     LaunchedEffect(youtubeAccount) { model.loadPodcastFeed() }
     LaunchedEffect(query, searchRetry) {
@@ -131,7 +132,7 @@ fun PodcastsScreen(model: MeloModel, navController: NavHostController, paddingVa
             throw cancelled
         } catch (failure: Exception) {
             searchShelves = emptyList()
-            searchError = failure.message ?: "Podcast search failed."
+            searchError = failure.message ?: searchFailedMessage
         } finally {
             if (currentCoroutineContext().isActive) searching = false
         }
@@ -388,6 +389,7 @@ fun PodcastDetailScreen(model: MeloModel, navController: NavHostController, brow
     var refreshing by remember { mutableStateOf(false) }
     var retry by rememberSaveable(browseId) { mutableIntStateOf(0) }
     var optionsFor by remember { mutableStateOf<Music?>(null) }
+    val loadFailedMessage = stringResource(R.string.podcast_load_failed)
 
     LaunchedEffect(browseId, retry) {
         if (podcast == null) loading = true else refreshing = true
@@ -397,7 +399,7 @@ fun PodcastDetailScreen(model: MeloModel, navController: NavHostController, brow
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            error = failure.message ?: "This podcast could not be loaded."
+            error = failure.message ?: loadFailedMessage
         } finally {
             if (currentCoroutineContext().isActive) {
                 loading = false

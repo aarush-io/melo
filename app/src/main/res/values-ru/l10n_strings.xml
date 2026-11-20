@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Player -->
+    <string name="common_repeat">Повтор</string>
+    <string name="common_favorite">Избранное</string>
+    <string name="lyrics_show_controls">Показать элементы управления</string>
+    <string name="player_playback_position">Позиция воспроизведения</string>
+    <string name="album_art_placeholder">Заглушка обложки: %1$s</string>
+
+    <!-- Cast -->
+    <string name="cast_manage_radios">Управляйте подключениями и повторите поиск</string>
+    <string name="cast_tap_to_connect">Нажмите, чтобы подключиться</string>
+    <string name="cast_no_devices">Устройств пока нет</string>
+
+    <!-- Library -->
+    <string name="library_playlist_view">Вид плейлиста</string>
+
+    <!-- Podcasts -->
+    <string name="podcast_search_failed">Не удалось найти подкасты.</string>
+    <string name="podcast_load_failed">Не удалось загрузить подкаст.</string>
+
+    <!-- Music kinds -->
+    <string name="kind_track">Трек</string>
+
+    <!-- Album art palette styles -->
+    <string name="palette_style_tonal_spot">Тональная</string>
+    <string name="palette_style_vibrant">Яркая</string>
+    <string name="palette_style_expressive">Выразительная</string>
+    <string name="palette_style_fruit_salad">Фруктовый салат</string>
+
+    <!-- Collage patterns -->
+    <string name="collage_pattern_cosmic_swirl">Космический вихрь</string>
+    <string name="collage_pattern_honeycomb_groove">Медовые соты</string>
+    <string name="collage_pattern_vinyl_stack">Стопка винила</string>
+    <string name="collage_pattern_pixel_mosaic">Пиксельная мозаика</string>
+    <string name="collage_pattern_stardust_scatter">Звёздная пыль</string>
+
+    <!-- Equalizer presets (rendered uppercase) -->
+    <string name="eq_preset_flat">Ровный</string>
+    <string name="eq_preset_rock">Рок</string>
+    <string name="eq_preset_pop">Поп</string>
+    <string name="eq_preset_hip_hop">Хип-хоп</string>
+    <string name="eq_preset_jazz">Джаз</string>
+    <string name="eq_preset_classical">Классика</string>
+    <string name="eq_preset_electronic">Электроника</string>
+    <string name="eq_preset_bass_boost">Усиление басов</string>
+    <string name="eq_preset_treble_boost">Усиление верхов</string>
+    <string name="eq_preset_vocal">Вокал</string>
+    <string name="eq_preset_custom">Свой</string>
+</resources>
