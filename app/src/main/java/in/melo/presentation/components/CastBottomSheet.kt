@@ -783,7 +783,7 @@ private fun CastControlsTabContent(
                         text = if (allConnectivityOff) {
                             stringResource(R.string.cast_turn_on_wifi_bt)
                         } else {
-                            "Manage active radios and rescan"
+                            stringResource(R.string.cast_manage_radios)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1242,7 +1242,7 @@ private fun DeviceSectionHeader(
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
             Text(
-                text = if (hasDevices) "Tap to connect" else "No devices yet",
+                text = stringResource(if (hasDevices) R.string.cast_tap_to_connect else R.string.cast_no_devices),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

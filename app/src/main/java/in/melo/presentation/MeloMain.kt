@@ -119,7 +119,7 @@ fun MeloMain(model: MeloModel) {
         persistentListOf(
             BottomNavItem("Home", R.string.nav_bar_home, R.drawable.rounded_home_24, R.drawable.home_24_rounded_filled, Screen.Home),
             BottomNavItem("Explore", R.string.nav_bar_explore, R.drawable.ic_explore_24, R.drawable.ic_explore_24, Screen.Explore),
-            BottomNavItem("Search", R.string.nav_bar_search, R.drawable.rounded_search_24, R.drawable.rounded_search_24, Screen.Search),
+            BottomNavItem("MyWave", R.string.nav_bar_my_wave, R.drawable.rounded_waves_24, R.drawable.rounded_waves_24_filled, Screen.MyWave),
             BottomNavItem("Library", R.string.nav_bar_library, R.drawable.rounded_library_music_24, R.drawable.round_library_music_24, Screen.Library),
             BottomNavItem("Podcasts", R.string.nav_bar_podcasts, R.drawable.rounded_headphones_24, R.drawable.rounded_headphones_24, Screen.Podcasts),
         )
@@ -275,7 +275,6 @@ fun MeloMain(model: MeloModel) {
                             navBarStyle = navBarStyle,
                             compactMode = navBarCompactMode,
                             bottomBarPadding = bottomBarPadding,
-                            onSearchIconDoubleTap = {},
                             modifier = Modifier.fillMaxSize()
                         )
                     }

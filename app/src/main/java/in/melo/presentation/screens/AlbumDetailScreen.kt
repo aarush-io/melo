@@ -115,7 +115,7 @@ fun AlbumDetailScreen(
             val spotifyAlbum = current.source == `in`.melo.data.MusicSource.Spotify
             DetailActionsRow(current, spotifyAlbum, current.id in saved, pins.any { it.id == current.id },
                 { model.toggleFavorite(current) }, { ui.togglePin(current) },
-                { ui.startRadio(current) { navController.openMusic(ui, it) } }, ui, showRadio = spotifyAlbum)
+                { ui.startRadio(current) { navController.openMusic(ui, it) } }, ui, showRadio = spotifyAlbum || current.source == `in`.melo.data.MusicSource.SoundCloud)
             `in`.melo.presentation.components.CollectionDownloadProgress(ui, current)
         }
         if (detail?.error != null) item { Text(detail.error, color = MaterialTheme.colorScheme.error) }

@@ -74,6 +74,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -151,6 +152,8 @@ fun HomeGradientTopBar(
     profileHandle: String? = null,
     spotifyConnected: Boolean = false,
     onProfileClick: (() -> Unit)? = null,
+    /** Shown first in the header when set: search no longer has a tab of its own. */
+    onSearchClick: (() -> Unit)? = null,
     isScrolled: Boolean = false,
     refreshing: Boolean = false,
     pullFraction: () -> Float = { 0f },
@@ -163,12 +166,19 @@ fun HomeGradientTopBar(
     var accountMenuExpanded by remember { mutableStateOf(false) }
     val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     MeloStatusBarStyle(color = colors.background)
-    Box(Modifier.fillMaxWidth()) {
+    val fontScale = LocalDensity.current.fontScale
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // The actions float over the bar: on a narrow screen or with large text, the wordmark
+        // gives way to them and the dotted mark stays.
+        val buttons = 2 + listOfNotNull(onSearchClick, onProfileClick).size
+        val actionsWidth = MeloLayout.ControlSize * buttons + MeloLayout.Space4 + MeloLayout.Space1
+        val titleWidth = MeloLayout.Space4 + MeloLayout.ControlSize + MeloLayout.Space2 + WORDMARK_WIDTH * fontScale
+        val showWordmark = maxWidth >= actionsWidth + titleWidth + MeloLayout.Space2
         TopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MeloRefreshLogo(refreshing, pullFraction, animateLogo)
-                    MeloWordmark()
+                    if (showWordmark) MeloWordmark()
                 }
             },
             // The actions are drawn in the Box overlay below so their bounds don't participate in
@@ -186,6 +196,11 @@ fun HomeGradientTopBar(
                 .border(0.75.dp, colors.outlineVariant.copy(alpha = MeloAlpha.Scrim), CircleShape),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (onSearchClick != null) {
+                IconButton(onClick = onSearchClick, modifier = Modifier.size(48.dp)) {
+                    Icon(painterResource(R.drawable.rounded_search_24), stringResource(R.string.nav_bar_search))
+                }
+            }
             IconButton(onClick = onHistoryClick, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Rounded.History, stringResource(R.string.history_title))
             }
@@ -515,3 +530,6 @@ private fun OverlayPanelAction(label: String, icon: @Composable () -> Unit, onCl
         )
     }
 }
+
+/** The MELO wordmark at 25 sp and a font scale of 1. */
+private val WORDMARK_WIDTH = 70.dp

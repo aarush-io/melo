@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,10 +87,7 @@ internal fun PlayerArtistPickerBottomSheet(
         normalizedItems.sortedByDescending { it.isPrimary }
     }
 
-    val countLabel = when (shortcutItems.size) {
-        1 -> stringResource(R.string.artist_picker_count_single)
-        else -> stringResource(R.string.artist_picker_count_multiple, shortcutItems.size)
-    }
+    val countLabel = pluralStringResource(R.plurals.artist_picker_count, shortcutItems.size, shortcutItems.size)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

@@ -10,4 +10,5 @@
 - The player uses HLS mode 4 and NativeMediaProcessor. `GetMediaHandleId(AUDIO)` needs the full 20-byte file ID (40 hex characters). The 16-byte MP4 KID is only used to find the context. Do not truncate the ID in the request and do not reintroduce MediaCrypto on this path.
 - Shuffle reorders the queue inside `SpotifyPlayer`. Media3's own shuffle mode stays off.
 - YouTube Music tracks, and Spotify tracks played without a Spotify account, use `ytm://` addresses read by `YouTubeDataSource` (progressive, byte ranges). That path never goes through the Spotify engine, and the Spotify path never falls back to it while signed in.
-- Everything in the repository is written in English. The app ships English (default) and French strings.
+- SoundCloud tracks use `scm://track/<id>` addresses read by `SoundCloudDataSource`. It serves the HLS fMP4 segments as one progressive file (init, a synthesized `sidx`, then the segments), so caching, downloads and preloading work as for `ytm://`. Tracks SoundCloud does not stream in full play from their YouTube Music match. See `protocol/13-soundcloud.md`.
+- Everything in the repository is written in English. The app ships English (default), French and Russian strings.

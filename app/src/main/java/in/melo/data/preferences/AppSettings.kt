@@ -139,9 +139,16 @@ data class AppSettings(
         const val LANGUAGE_SYSTEM = "system"
         const val TAB_HOME = "home"
         const val TAB_EXPLORE = "explore"
-        const val TAB_SEARCH = "search"
+        const val TAB_MY_WAVE = "my_wave"
         const val TAB_LIBRARY = "library"
         const val TAB_PODCASTS = "podcasts"
+        private val TABS = setOf(TAB_HOME, TAB_EXPLORE, TAB_MY_WAVE, TAB_LIBRARY, TAB_PODCASTS)
+
+        /**
+         * The start tab for [stored], a value saved by this or an earlier version. Search was a tab
+         * and now opens from the Home header: a start tab saved as Search, or unknown, opens Home.
+         */
+        fun startTab(stored: String): String = if (stored in TABS) stored else TAB_HOME
         const val MINI_SWIPE_TRACKS = "tracks"
         const val MINI_SWIPE_DISMISS = "dismiss"
         const val MINI_SWIPE_OFF = "off"
@@ -178,7 +185,7 @@ data class AppSettings(
                 immersiveLyrics = json.optBoolean("immersiveLyrics", d.immersiveLyrics),
                 immersiveLyricsTimeoutMs = json.optLong("immersiveLyricsTimeoutMs", d.immersiveLyricsTimeoutMs),
                 lyricsFallback = json.optBoolean("lyricsFallback", d.lyricsFallback),
-                defaultTab = json.optString("defaultTab", d.defaultTab),
+                defaultTab = startTab(json.optString("defaultTab", d.defaultTab)),
                 keepPlayingInBackground = json.optBoolean("keepPlayingInBackground", d.keepPlayingInBackground),
                 pauseOnVolumeZero = json.optBoolean("pauseOnVolumeZero", d.pauseOnVolumeZero),
                 resumeOnHeadphones = json.optBoolean("resumeOnHeadphones", d.resumeOnHeadphones),

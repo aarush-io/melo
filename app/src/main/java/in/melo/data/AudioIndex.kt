@@ -11,9 +11,12 @@ import java.security.MessageDigest
 internal data class AudioFileRecord(val hex: String, val expectedBytes: Long, val playlistUrl: String) {
     /** YouTube Music files are plain audio: nothing to prepare with the native engine. */
     val isYouTube: Boolean get() = hex.startsWith(YOUTUBE_FILE_PREFIX)
+    /** Plain audio read straight from a service (YouTube Music or SoundCloud), never by the native engine. */
+    val isDirect: Boolean get() = isYouTube || hex.startsWith(SOUNDCLOUD_FILE_PREFIX)
 }
 
 internal const val YOUTUBE_FILE_PREFIX = "yt-"
+internal const val SOUNDCLOUD_FILE_PREFIX = "sc-"
 
 /** JSON has no NaN: absent values are written as null and read back as NaN. */
 private fun Float.toSafeJson(): Any = if (isNaN()) JSONObject.NULL else toDouble()

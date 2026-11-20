@@ -9,6 +9,7 @@ Melo has no server, no analytics, no crash reporting and no advertising SDK.
 | Spotify (`*.spotify.com`, `*.scdn.co`, Spotify CDNs) | The same requests as the official Android app: device description for the client token, sign-in, library, catalog, playlists, audio | To use your Spotify account |
 | YouTube (`music.youtube.com`, `www.youtube.com`, `*.googlevideo.com`) | Search text, playlist and video ids, an anonymous visitor identifier issued by YouTube; for a Spotify track played without a Spotify account, its title and artist | YouTube Music search, playlists and audio, without a Google account |
 | YouTube Music with a Google account (`accounts.google.com`, `music.youtube.com`) | Google's sign-in page, shown in the app. Then the account's cookies with each library and playlist request: list of playlists, their tracks, creation, renaming, visibility, added and removed tracks, deletion | Your YouTube Music playlists, only if you connect an account |
+| SoundCloud (`api-v2.soundcloud.com`, `soundcloud.com`, `a-v2.sndcdn.com`, `*.sndcdn.com`, `*.media-streaming.soundcloud.cloud`) | Search text, track, playlist and user ids, links you paste, the profile name you link; the public web client id read from soundcloud.com | SoundCloud search, pages and audio, without a SoundCloud account. Nothing is posted to SoundCloud. |
 | Spotify embed page (`open.spotify.com`) | A playlist id | Import a Spotify playlist without a Spotify account |
 | [LRCLIB](https://lrclib.net) | Title, artist, album and duration of a track | Lyrics when Spotify has none. Turn off in Settings → LRCLIB fallback. |
 
@@ -21,16 +22,16 @@ Your Spotify credentials are only sent to Spotify's login service. Audio CDNs ne
 - The session credential, encrypted with an Android Keystore key.
 - The Google account's cookies, if one is connected, encrypted with another Android Keystore key, with its name and picture.
 - The library, pages, artwork and lyrics cache.
-- Downloaded and cached audio as delivered: encrypted for Spotify, plain for YouTube Music.
-- Settings, pins, multi-service playlists, the list of YouTube Music playlists of the connected account, YouTube Music matches of Spotify tracks and search history.
+- Downloaded and cached audio as delivered: encrypted for Spotify, plain for YouTube Music and SoundCloud.
+- Settings, pins, multi-service playlists, the list of YouTube Music playlists of the connected account, the linked SoundCloud profile with its likes and playlists, YouTube Music matches of Spotify tracks and search history.
 
-Sign out (Settings → Accounts) erases the Spotify credential and stops playback. Disconnecting the Google account (Settings → Accounts) erases its cookies, the app's web cookies and the playlist pages read with it; the playlists stay on YouTube Music. Clearing the app's data erases everything.
+Sign out (Settings → Accounts) erases the Spotify credential and stops playback. Disconnecting the Google account (Settings → Accounts) erases its cookies, the app's web cookies and the playlist pages read with it; the playlists stay on YouTube Music. Unlinking the SoundCloud profile (Settings → Accounts) erases its likes and playlists from the device; nothing changes on SoundCloud. Clearing the app's data erases everything.
 
 ## Permissions
 
 | Permission | Use |
 | --- | --- |
-| Internet, network state | Talk to Spotify and YouTube Music, follow connectivity |
+| Internet, network state | Talk to Spotify, YouTube Music and SoundCloud, follow connectivity |
 | Foreground service, notifications | Background playback and download progress |
 | Wake lock | Keep playing with the screen off |
 | Bluetooth, nearby Wi-Fi devices, Wi-Fi multicast, location (Android 12 and older only) | Find Cast devices and audio outputs. Location is never read; older Android versions require it for device scans. |

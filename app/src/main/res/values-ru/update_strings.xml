@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="update_settings_title">Проверить обновления</string>
+    <string name="update_checking">Проверка обновлений…</string>
+    <string name="update_available">Доступно обновление</string>
+    <string name="update_installed">Установленная версия: %1$s</string>
+    <string name="update_action">Обновить</string>
+    <string name="update_later">Позже</string>
+    <string name="update_close">Закрыть</string>
+    <string name="update_cancel">Отмена</string>
+    <string name="update_retry">Повторить</string>
+    <string name="update_release_page">Страница релиза</string>
+    <string name="update_no_apk">Откройте страницу релиза, чтобы скачать эту версию.</string>
+    <string name="update_downloading">Скачивание обновления</string>
+    <string name="update_progress">%1$s / %2$s МБ · %3$d%%</string>
+    <string name="update_downloaded">Скачано %1$s МБ</string>
+    <string name="update_ready">Готово к установке</string>
+    <string name="update_install">Установить</string>
+    <string name="update_install_description">Android попросит подтвердить обновление. Если потребуется, разрешите Melo устанавливать приложения и вернитесь сюда, чтобы продолжить.</string>
+    <string name="update_failed_title">Обновление недоступно</string>
+    <string name="update_check_failed">Не удалось проверить обновления. Повторите попытку или откройте страницу релиза.</string>
+    <string name="update_download_failed">Не удалось скачать или проверить обновление. Повторите попытку или откройте страницу релиза.</string>
+    <string name="update_current_title">Актуальная версия</string>
+    <string name="update_current_description">Melo %1$s. Новых версий нет.</string>
+    <string name="update_notes_title">Что нового</string>
+</resources>

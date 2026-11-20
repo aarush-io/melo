@@ -2,8 +2,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="album_cover_for">Cover of %1$s</string>
     <string name="album_detail_meta_line">%1$s · %2$s</string>
-    <string name="artist_picker_count_multiple">%1$d artists</string>
-    <string name="artist_picker_count_single">1 artist</string>
+    <plurals name="artist_picker_count">
+        <item quantity="one">%d artist</item>
+        <item quantity="other">%d artists</item>
+    </plurals>
     <string name="artist_picker_primary_label">Primary artist</string>
     <string name="artist_picker_shortcut_label">Artist page</string>
     <string name="artist_picker_title">Pick an Artist</string>
@@ -209,6 +211,20 @@
     <string name="lyrics_synced_badge">SYNCED</string>
     <string name="lyrics_title">Lyrics</string>
     <string name="nav_bar_home">Home</string>
+    <string name="nav_bar_my_wave">My Wave</string>
+    <string name="my_wave_subtitle">Endless music like the track you are playing</string>
+    <string name="my_wave_hint">Tap the button for endless music like what you are listening to now</string>
+    <string name="my_wave_from_track">Inspired by “%1$s”</string>
+    <string name="my_wave_from_history">Inspired by your recent listening</string>
+    <string name="my_wave_from_likes">Inspired by your liked songs</string>
+    <string name="my_wave_from_mood">Picked for this time of day</string>
+    <string name="my_wave_play">Play My Wave</string>
+    <string name="my_wave_pause">Pause My Wave</string>
+    <string name="my_wave_shake">Start over</string>
+    <string name="my_wave_next_title">Up next</string>
+    <string name="my_wave_loading">Finding tracks…</string>
+    <string name="my_wave_offline">My Wave needs an internet connection.</string>
+    <string name="my_wave_failed">No similar tracks were found. Play a song and try again.</string>
     <string name="nav_bar_library">Library</string>
     <string name="nav_bar_search">Search</string>
     <string name="player_cd_cast">Cast</string>

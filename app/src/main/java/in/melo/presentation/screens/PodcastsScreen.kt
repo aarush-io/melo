@@ -97,6 +97,7 @@ fun PodcastsScreen(model: MeloModel, navController: NavHostController, paddingVa
     val ui = model.ui
     val settings by ui.settings.collectAsStateWithLifecycle()
     val youtubeAccount by model.youTubeAccount.collectAsStateWithLifecycle()
+    val discovery by model.discovery.collectAsStateWithLifecycle()
     val podcastState by model.podcastFeed.collectAsStateWithLifecycle()
     val hasSong by ui.stablePlayerStateHasSongForPodcasts()
     var query by rememberSaveable { mutableStateOf("") }
@@ -111,6 +112,7 @@ fun PodcastsScreen(model: MeloModel, navController: NavHostController, paddingVa
     val feedLoading = podcastState.loading
     val refreshing = podcastState.refreshing
     val loadingMore = podcastState.loadingMore
+    val searchFailedMessage = stringResource(R.string.podcast_search_failed)
 
     LaunchedEffect(youtubeAccount) { model.loadPodcastFeed() }
     LaunchedEffect(query, searchRetry) {
@@ -131,7 +133,7 @@ fun PodcastsScreen(model: MeloModel, navController: NavHostController, paddingVa
             throw cancelled
         } catch (failure: Exception) {
             searchShelves = emptyList()
-            searchError = failure.message ?: "Podcast search failed."
+            searchError = failure.message ?: searchFailedMessage
         } finally {
             if (currentCoroutineContext().isActive) searching = false
         }
@@ -148,6 +150,10 @@ fun PodcastsScreen(model: MeloModel, navController: NavHostController, paddingVa
                 onSettingsClick = { navController.navigateSafely(Screen.Settings.route) },
                 onHistoryClick = { navController.navigateSafely(Screen.History.route) },
                 profileImageUrl = youtubeAccount?.photoUrl,
+                // The account menu shows who is signed in, as on Home.
+                profileName = youtubeAccount?.name,
+                profileHandle = youtubeAccount?.handle,
+                spotifyConnected = discovery.spotifyEnabled,
                 onProfileClick = { navController.navigateSafely(Screen.SettingsCategory.createRoute("account")) },
             )
         },
@@ -388,6 +394,7 @@ fun PodcastDetailScreen(model: MeloModel, navController: NavHostController, brow
     var refreshing by remember { mutableStateOf(false) }
     var retry by rememberSaveable(browseId) { mutableIntStateOf(0) }
     var optionsFor by remember { mutableStateOf<Music?>(null) }
+    val loadFailedMessage = stringResource(R.string.podcast_load_failed)
 
     LaunchedEffect(browseId, retry) {
         if (podcast == null) loading = true else refreshing = true
@@ -397,7 +404,7 @@ fun PodcastDetailScreen(model: MeloModel, navController: NavHostController, brow
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            error = failure.message ?: "This podcast could not be loaded."
+            error = failure.message ?: loadFailedMessage
         } finally {
             if (currentCoroutineContext().isActive) {
                 loading = false

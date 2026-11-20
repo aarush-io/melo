@@ -49,7 +49,9 @@ internal fun SpotifyPlaylistEditor(
     val google by model.youTubeAccount.collectAsState()
     // A YouTube Music playlist only takes YouTube Music tracks.
     val youTubeAllowed = playlist == null && google != null && (initialItem == null || initialItem.id.startsWith("ytm:"))
-    var destination by remember { mutableStateOf(if (signedIn) PlaylistKind.Spotify else PlaylistKind.MultiService) }
+    // A SoundCloud item only goes into a multi-service playlist.
+    val spotifyAllowed = signedIn && (initialItem == null || `in`.melo.data.musicSourceOf(initialItem.id) != `in`.melo.data.MusicSource.SoundCloud)
+    var destination by remember { mutableStateOf(if (spotifyAllowed) PlaylistKind.Spotify else PlaylistKind.MultiService) }
     val local = destination == PlaylistKind.MultiService
     val youTube = destination == PlaylistKind.YouTubeMusic
     var published by remember { mutableStateOf(false) }
@@ -70,7 +72,7 @@ internal fun SpotifyPlaylistEditor(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it.take(100) }, label = { Text(stringResource(R.string.playlist_name)) }, singleLine = true, enabled = !busy)
                 val choices = buildList {
-                    if (signedIn) add(PlaylistKind.Spotify to R.string.spotify_playlist_account)
+                    if (spotifyAllowed) add(PlaylistKind.Spotify to R.string.spotify_playlist_account)
                     if (youTubeAllowed) add(PlaylistKind.YouTubeMusic to R.string.youtube_playlist_account)
                     add(PlaylistKind.MultiService to R.string.spotify_playlist_device)
                 }

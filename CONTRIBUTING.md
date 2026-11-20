@@ -25,7 +25,7 @@ Include:
 1. Keep the change focused and explain why it is needed.
 2. Run `./gradlew :app:testDebugUnitTest :app:lintDebug` (add `-PnativeRuntime=false` if you do not have the Spotify APKM).
 3. For audio changes, check the decoded signal, not only the player state: past the unencrypted lead-in, after a seek, and across a track transition. See [`native-runtime/README.md`](native-runtime/README.md).
-4. Write code, comments and documentation in English. New user-facing strings go in `res/values/` (English) and `res/values-fr/` (French).
+4. Write code, comments and documentation in English. New user-facing strings go in `res/values/` (English), `res/values-fr/` (French) and `res/values-ru/` (Russian). Russian plurals need the `one`, `few`, `many` and `other` forms.
 
 ## What will not be accepted
 

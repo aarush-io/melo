@@ -109,6 +109,7 @@ fun PlaylistItem(
         badge = {
             if (playlist.id.startsWith("local:")) LocalBadge()
             else if (playlist.id.startsWith("ytm:playlist:")) SourceBadge(`in`.melo.data.MusicSource.YouTubeMusic)
+            else if (`in`.melo.data.soundcloud.isSoundCloudId(playlist.id)) SourceBadge(`in`.melo.data.MusicSource.SoundCloud)
         })
 }
 

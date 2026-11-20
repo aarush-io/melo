@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="source_soundcloud">SoundCloud</string>
+    <string name="search_source_soundcloud">SoundCloud</string>
+    <string name="soundcloud_search_failed">La recherche SoundCloud est indisponible pour le moment.</string>
+    <string name="soundcloud_likes_title">J\'aime SoundCloud</string>
+    <string name="soundcloud_page_failed">Impossible de charger cette page SoundCloud.</string>
+    <string name="soundcloud_profile_not_found">Aucun profil SoundCloud ne correspond à ce nom ou à ce lien.</string>
+    <string name="soundcloud_unreachable">SoundCloud est injoignable pour le moment. Réessayez plus tard.</string>
+    <string name="soundcloud_not_found">Ce contenu n\'est pas disponible sur SoundCloud.</string>
+    <string name="soundcloud_track_unavailable">SoundCloud ne diffuse pas ce titre.</string>
+    <string name="soundcloud_nothing_similar">SoundCloud n\'a rien trouvé de similaire.</string>
+    <string name="soundcloud_rate_limited">SoundCloud limite les requêtes. Réessayez dans un instant.</string>
+    <string name="soundcloud_failed">SoundCloud n\'a pas répondu. Réessayez.</string>
+    <string name="soundcloud_link_title">Associer un profil SoundCloud</string>
+    <string name="soundcloud_link_subtitle">Affiche vos j\'aime et playlists depuis votre profil public. Sans mot de passe.</string>
+    <string name="soundcloud_link_body">Saisissez le nom de votre profil ou son lien. Melo lit uniquement ce que montre votre profil public : rien n\'est publié et aucun mot de passe n\'est demandé.</string>
+    <string name="soundcloud_link_hint">Nom ou lien du profil</string>
+    <string name="soundcloud_link_action">Associer</string>
+    <string name="soundcloud_linked_subtitle">soundcloud.com/%1$s · Touchez pour relire les j\'aime et playlists</string>
+    <string name="soundcloud_reading">Lecture des j\'aime et playlists…</string>
+    <string name="soundcloud_unlink_title">Dissocier SoundCloud</string>
+    <string name="soundcloud_unlink_subtitle">Retire le profil et ses j\'aime de cet appareil. Rien ne change sur SoundCloud.</string>
+</resources>

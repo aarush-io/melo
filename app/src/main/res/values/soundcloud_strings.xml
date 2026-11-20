@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="source_soundcloud">SoundCloud</string>
+    <string name="search_source_soundcloud">SoundCloud</string>
+    <string name="soundcloud_search_failed">SoundCloud search is unavailable right now.</string>
+    <string name="soundcloud_likes_title">SoundCloud likes</string>
+    <string name="soundcloud_page_failed">This SoundCloud page could not be loaded.</string>
+    <string name="soundcloud_profile_not_found">No SoundCloud profile has this name or link.</string>
+    <string name="soundcloud_unreachable">SoundCloud cannot be reached right now. Try again later.</string>
+    <string name="soundcloud_not_found">This is not available on SoundCloud.</string>
+    <string name="soundcloud_track_unavailable">SoundCloud does not stream this track.</string>
+    <string name="soundcloud_nothing_similar">SoundCloud found nothing similar.</string>
+    <string name="soundcloud_rate_limited">SoundCloud is limiting requests. Try again in a moment.</string>
+    <string name="soundcloud_failed">SoundCloud did not answer. Try again.</string>
+    <string name="soundcloud_link_title">Link a SoundCloud profile</string>
+    <string name="soundcloud_link_subtitle">Shows your likes and playlists from your public profile. No password.</string>
+    <string name="soundcloud_link_body">Enter your profile name or its link. Melo reads only what your public profile shows: nothing is posted, and no password is asked.</string>
+    <string name="soundcloud_link_hint">Profile name or link</string>
+    <string name="soundcloud_link_action">Link</string>
+    <string name="soundcloud_linked_subtitle">soundcloud.com/%1$s · Tap to read likes and playlists again</string>
+    <string name="soundcloud_reading">Reading likes and playlists…</string>
+    <string name="soundcloud_unlink_title">Unlink SoundCloud</string>
+    <string name="soundcloud_unlink_subtitle">Removes the profile and its likes from this device. Nothing changes on SoundCloud.</string>
+</resources>

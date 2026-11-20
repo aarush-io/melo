@@ -33,12 +33,14 @@ fun SourceBadge(source: MusicSource, modifier: Modifier = Modifier, tint: Color 
     val description = stringResource(when (source) {
         MusicSource.Spotify -> R.string.source_spotify
         MusicSource.YouTubeMusic -> R.string.source_youtube
+        MusicSource.SoundCloud -> R.string.source_soundcloud
         MusicSource.Local -> R.string.source_local
     })
     val iconModifier = modifier.size(14.dp)
     when (source) {
         MusicSource.Spotify -> Icon(painterResource(R.drawable.ic_source_spotify), description, iconModifier, tint = tint)
         MusicSource.YouTubeMusic -> Icon(painterResource(R.drawable.ic_source_youtube_music), description, iconModifier, tint = tint)
+        MusicSource.SoundCloud -> Icon(painterResource(R.drawable.ic_source_soundcloud), description, iconModifier, tint = tint)
         MusicSource.Local -> Icon(Icons.Rounded.Folder, description, iconModifier, tint = tint)
     }
 }

@@ -113,7 +113,9 @@ fun AddToLocalPlaylistSheet(item: Music, ui: PlayerViewModel, onDismiss: () -> U
     LaunchedEffect(Unit) { username = runCatching { SpotifyAccount.require(context).username() }.getOrNull() }
     // A Spotify playlist takes Spotify tracks and local files; multi-service playlists take everything.
     // Local files are added as Spotify's own local file references.
-    val spotifyItem = item.kind != `in`.melo.data.MusicKind.Track || item.source != `in`.melo.data.MusicSource.YouTubeMusic
+    // SoundCloud items only go into multi-service playlists.
+    val spotifyItem = item.source != `in`.melo.data.MusicSource.SoundCloud &&
+        (item.kind != `in`.melo.data.MusicKind.Track || item.source != `in`.melo.data.MusicSource.YouTubeMusic)
     val accountPlaylists = library.content?.playlists.orEmpty().filter { spotifyItem && username != null && it.ownerUsername == username }
     // A YouTube Music playlist of the Google account takes YouTube Music tracks and playlists.
     val youTubeEditable by ui.model.youTubeEditable.collectAsStateWithLifecycle()
@@ -155,7 +157,7 @@ fun AddToLocalPlaylistSheet(item: Music, ui: PlayerViewModel, onDismiss: () -> U
                         SmartImage(model = playlist.imageUrl, contentDescription = null, shape = MeloLayout.CardShape,
                             targetSize = SmartImageCompactListTargetSize, modifier = Modifier.size(44.dp))
                         Text(playlist.title, Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("Spotify", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.source_spotify), style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 items(youTubePlaylists, key = { it.id }) { playlist ->
@@ -173,7 +175,7 @@ fun AddToLocalPlaylistSheet(item: Music, ui: PlayerViewModel, onDismiss: () -> U
                         SmartImage(model = playlist.imageUrl, contentDescription = null, shape = MeloLayout.CardShape,
                             targetSize = SmartImageCompactListTargetSize, modifier = Modifier.size(44.dp))
                         Text(playlist.title, Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("YouTube Music", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.source_youtube), style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 items(playlists, key = { it.id }) { playlist ->

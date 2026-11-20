@@ -306,13 +306,13 @@
     <string name="playlist_exported">Playlist exportée</string>
     <string name="playlist_import">Importer une playlist</string>
     <string name="import_from_file">Fichier CSV exporté par Melo</string>
-    <string name="import_from_link">Lien YouTube, YouTube Music ou Spotify</string>
+    <string name="import_from_link">Lien YouTube, YouTube Music, Spotify ou SoundCloud</string>
     <string name="import_link_label">Lien de la playlist</string>
     <string name="import_action">Importer</string>
     <string name="import_running">Importation…</string>
     <string name="import_done">« %1$s » importée : %2$d morceaux</string>
     <string name="import_no_tracks">Aucun morceau à importer.</string>
-    <string name="import_unknown_link">Ce lien n’est pas une playlist YouTube, YouTube Music ou Spotify.</string>
+    <string name="import_unknown_link">Ce lien n’est pas une playlist YouTube, YouTube Music, Spotify ou SoundCloud.</string>
     <string name="import_default_name">Playlist importée</string>
     <string name="import_failed">Cette playlist n’a pas pu être importée.</string>
     <string name="settings_source_badges_title">Badges de provenance</string>
@@ -475,7 +475,7 @@
     <string name="queue_section_queued">File d’attente</string>
     <string name="queue_section_next_from">À suivre dans : %1$s</string>
     <string name="settings_search_sources_title">Choisir la source de recherche</string>
-    <string name="settings_search_sources_subtitle">Affiche Tout, Spotify, YouTube et Appareil au-dessus des résultats. Masqué, chaque recherche porte sur toutes les sources.</string>
+    <string name="settings_search_sources_subtitle">Affiche Tout, Spotify, YouTube, SoundCloud et Appareil au-dessus des résultats. Masqué, chaque recherche porte sur toutes les sources.</string>
     <string name="settings_privacy_title">Confidentialité</string>
     <string name="settings_privacy_subtitle">Analyses d’utilisation et collecte de données</string>
     <string name="settings_analytics_title">Partager les données d’utilisation</string>

@@ -16,6 +16,7 @@ import `in`.melo.data.AudioIndex
 import `in`.melo.data.Music
 import `in`.melo.data.YOUTUBE_FILE_PREFIX
 import `in`.melo.data.isLocalTrack
+import `in`.melo.data.soundcloud.SC_TRACK_PREFIX
 import `in`.melo.data.youtube.MatchQuery
 import `in`.melo.data.youtube.TrackMatcher
 import `in`.melo.data.youtube.YouTubeFailure
@@ -37,14 +38,20 @@ internal object YouTubeUris {
     fun of(track: Music, spotifySignedIn: Boolean): Uri? {
         track.youTubeVideoId?.let { return Uri.parse("$SCHEME://track/$it") }
         if (spotifySignedIn || track.isLocalTrack || !track.id.startsWith("spotify:track:")) return null
-        return Uri.Builder().scheme(SCHEME).authority("match").appendPath(track.id)
-            .appendQueryParameter("title", track.title).appendQueryParameter("artists", track.subtitle)
-            .appendQueryParameter("duration", track.durationMs.toString()).appendQueryParameter("album", track.album)
-            .build()
+        return match(track)
     }
 
-    /** The file name the caches know this track's audio by. */
-    fun fileHex(trackId: String): String =
+    /**
+     * The address that plays [track]'s YouTube Music match, found by [TrackMatcher]: for tracks of
+     * another service that cannot be read where they come from.
+     */
+    fun match(track: Music): Uri = Uri.Builder().scheme(SCHEME).authority("match").appendPath(track.id)
+        .appendQueryParameter("title", track.title).appendQueryParameter("artists", track.subtitle)
+        .appendQueryParameter("duration", track.durationMs.toString()).appendQueryParameter("album", track.album)
+        .build()
+
+    /** The file name the caches know this track's audio by. A SoundCloud track keeps its own, whatever plays it. */
+    fun fileHex(trackId: String): String = if (trackId.startsWith(SC_TRACK_PREFIX)) SoundCloudUris.fileHex(trackId) else
         YOUTUBE_FILE_PREFIX + (trackId.substringAfter("ytm:track:", "").ifEmpty { "sp-" + trackId.substringAfterLast(':') })
 
     @androidx.annotation.OptIn(UnstableApi::class)
@@ -203,25 +210,27 @@ internal class YouTubeDataSource private constructor(private val context: Contex
     }
 }
 
-/** Sends every address to the source that reads it: YouTube Music, or the Spotify chain. */
+/**
+ * Reads the services Melo streams directly, as plain files: YouTube Music (`ytm://`) and
+ * SoundCloud (`scm://`). One chain of caches serves both, keyed by track.
+ */
 @UnstableApi
-internal class RoutingDataSourceFactory(
-    private val spotify: DataSource.Factory,
-    private val youtube: DataSource.Factory,
-) : DataSource.Factory {
-    override fun createDataSource(): DataSource = RoutingDataSource(spotify, youtube)
+internal class DirectDataSourceFactory(context: Context) : DataSource.Factory {
+    private val youtube = YouTubeDataSource.Factory(context)
+    private val soundcloud = SoundCloudDataSource.Factory(context)
+    override fun createDataSource(): DataSource = RoutingDataSource(youtube, soundcloud)
 }
 
 @UnstableApi
 private class RoutingDataSource(
-    private val spotifyFactory: DataSource.Factory,
     private val youtubeFactory: DataSource.Factory,
+    private val soundcloudFactory: DataSource.Factory,
 ) : DataSource {
     private val listeners = ArrayList<androidx.media3.datasource.TransferListener>()
     private var current: DataSource? = null
     override fun addTransferListener(transferListener: androidx.media3.datasource.TransferListener) { listeners += transferListener }
     override fun open(dataSpec: DataSpec): Long {
-        val source = (if (YouTubeUris.isYouTube(dataSpec.uri)) youtubeFactory else spotifyFactory).createDataSource()
+        val source = (if (SoundCloudUris.isSoundCloud(dataSpec.uri)) soundcloudFactory else youtubeFactory).createDataSource()
         listeners.forEach(source::addTransferListener)
         current = source
         return source.open(dataSpec)
@@ -230,4 +239,16 @@ private class RoutingDataSource(
     override fun getUri(): Uri? = current?.uri
     override fun getResponseHeaders(): Map<String, List<String>> = current?.responseHeaders.orEmpty()
     override fun close() { try { current?.close() } finally { current = null } }
+}
+
+/** Addresses of tracks read as plain files from a streaming service: YouTube Music or SoundCloud. */
+internal object DirectUris {
+    /** The address that plays [track] directly, or null when it plays from a device file or the Spotify engine. */
+    fun of(track: Music, spotifySignedIn: Boolean): Uri? = SoundCloudUris.of(track) ?: YouTubeUris.of(track, spotifySignedIn)
+
+    fun isDirect(uri: Uri?): Boolean = YouTubeUris.isYouTube(uri) || SoundCloudUris.isSoundCloud(uri)
+
+    /** The cache key of a track read directly, by its queue id. */
+    fun cacheKey(trackId: String): String =
+        if (trackId.startsWith(SC_TRACK_PREFIX)) SoundCloudUris.cacheKey(trackId) else YouTubeUris.cacheKey(trackId)
 }

@@ -31,7 +31,8 @@ object PlaylistCsv {
         fun List<String>.at(column: String) = columns.getValue(column).takeIf { it >= 0 }?.let(::getOrNull)?.trim().orEmpty()
         val tracks = rows.drop(1).mapNotNull { row ->
             val id = row.at("id").ifBlank { return@mapNotNull null }
-            val valid = id.startsWith("spotify:track:") || id.startsWith(YTM_TRACK_PREFIX) || isLocalTrackId(id)
+            val valid = id.startsWith("spotify:track:") || id.startsWith(YTM_TRACK_PREFIX) ||
+                id.startsWith(`in`.melo.data.soundcloud.SC_TRACK_PREFIX) || isLocalTrackId(id)
             if (!valid) return@mapNotNull null
             Music(
                 id = id, title = row.at("title").ifBlank { id.substringAfterLast(':') }, subtitle = row.at("artists"),
@@ -46,12 +47,14 @@ object PlaylistCsv {
     fun sourceName(source: MusicSource) = when (source) {
         MusicSource.Spotify -> "spotify"
         MusicSource.YouTubeMusic -> "youtube_music"
+        MusicSource.SoundCloud -> "soundcloud"
         MusicSource.Local -> "local"
     }
 
     private fun link(track: Music): String = when {
         track.id.startsWith("spotify:track:") -> "https://open.spotify.com/track/" + track.id.substringAfterLast(':')
         track.id.startsWith(YTM_TRACK_PREFIX) -> "https://music.youtube.com/watch?v=" + track.id.removePrefix(YTM_TRACK_PREFIX)
+        track.id.startsWith(`in`.melo.data.soundcloud.SC_TRACK_PREFIX) -> `in`.melo.data.soundcloud.SoundCloud.pageUrl(track.id).orEmpty()
         else -> track.mediaUri.orEmpty()
     }
 

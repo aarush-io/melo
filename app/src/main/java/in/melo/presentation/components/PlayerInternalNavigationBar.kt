@@ -4,12 +4,12 @@ import `in`.melo.ui.theme.MeloAlpha
 import `in`.melo.ui.theme.MeloLayout
 import `in`.melo.presentation.navigation.navigateToTopLevelSafely
 
-import android.os.SystemClock
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -17,29 +17,32 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import `in`.melo.BottomNavItem
 import `in`.melo.data.preferences.NavBarStyle
 import `in`.melo.presentation.components.scoped.CustomNavigationBarItem
 import `in`.melo.presentation.navigation.Screen
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 internal val NavBarContentHeight = 80.dp // Altura del contenido de la barra de navegación
 internal val NavBarCompactContentHeight = 64.dp
@@ -102,7 +105,6 @@ private fun PlayerInternalNavigationItemsRow(
     navBarStyle: String,
     compactMode: Boolean,
     bottomBarPadding: Dp,
-    onSearchIconDoubleTap: () -> Unit
 ) {
     val navBarInsetPadding = sanitizeNavigationBarBottomInset(
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -111,9 +113,10 @@ private fun PlayerInternalNavigationItemsRow(
     // This prevents nav items from appearing behind the gesture bar during style transitions,
     // e.g. FULL_WIDTH→DEFAULT where bottomBarPadding starts at 0 and animates to systemNavBarInset.
     val innerRowPadding = (navBarInsetPadding - bottomBarPadding).coerceAtLeast(0.dp)
-    val latestCurrentRoute by rememberUpdatedState(currentRoute)
-    val latestOnSearchIconDoubleTap by rememberUpdatedState(onSearchIconDoubleTap)
     val latestNavigationEnabled by rememberUpdatedState(currentRoute != null)
+    // The size each label fits at, by route. Every label is drawn at the smallest of them, so the row
+    // reads as one; a label that fits larger again (a wider bar) raises its own entry.
+    val labelSizes = remember(navItems) { mutableStateMapOf<String, Float>() }
 
     val rowModifier = if (navBarStyle == NavBarStyle.FULL_WIDTH) {
         modifier
@@ -133,8 +136,6 @@ private fun PlayerInternalNavigationItemsRow(
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val scope = rememberCoroutineScope()
-        var lastSearchTapTimestamp by remember { mutableStateOf(0L) }
         navItems.forEach { item ->
             val isSelected = currentRoute != null && currentRoute == item.screen.route
             val selectedColor = MaterialTheme.colorScheme.primary
@@ -166,50 +167,60 @@ private fun PlayerInternalNavigationItemsRow(
             val labelLambda: (@Composable () -> Unit)? = if (compactMode) {
                 null
             } else {
-                remember(localizedLabel) {
-                    { Text(localizedLabel) }
+                val route = item.screen.route
+                remember(localizedLabel, labelSizes, route) {
+                    {
+                        // Longer translations ("Bibliothèque", "Медиатека") must not wrap mid-word on narrow
+                        // screens or at large font scales: keep one line and shrink the text to fit instead.
+                        // The size steps down while the laid out text overflows the tab. Text's own auto
+                        // size kept the full size here and let "Моя волна" run into the next tab.
+                        BoxWithConstraints(contentAlignment = Alignment.Center) {
+                            // Only what changes the layout restarts the fit: the colour, which follows the
+                            // selected tab, is passed to the text on its own.
+                            val provided = LocalTextStyle.current
+                            val base = provided.copy(color = Color.Unspecified)
+                            var fitted by remember(localizedLabel, base, constraints.maxWidth) { mutableStateOf(base) }
+                            var fits by remember(localizedLabel, base, constraints.maxWidth) { mutableStateOf(false) }
+                            val shared = labelSizes.values.minOrNull() ?: Float.MAX_VALUE
+                            val shown = if (fits) labelAt(base, minOf(shared, fitted.fontSize.value)) else fitted
+                            Text(
+                                localizedLabel,
+                                color = provided.color,
+                                style = shown,
+                                maxLines = 1,
+                                softWrap = false,
+                                onTextLayout = { layout ->
+                                    val smaller = if (layout.didOverflowWidth) smallerLabel(base, shown) else null
+                                    if (smaller != null) {
+                                        fitted = smaller
+                                    } else {
+                                        fits = true
+                                        if (fitted.fontSize.isSp) labelSizes[route] = fitted.fontSize.value
+                                    }
+                                },
+                                // An overflowing step is not drawn, so the label does not flicker while it shrinks.
+                                modifier = Modifier.drawWithContent { if (fits) drawContent() },
+                            )
+                        }
+                    }
                 }
             }
-            val onClickLambda: () -> Unit = remember(item.screen.route, navController, scope) {
+            val onClickLambda: () -> Unit = remember(item.screen.route, navController) {
                 click@{
-                    if (!latestNavigationEnabled) {
-                        lastSearchTapTimestamp = 0L
-                        return@click
-                    }
-
+                    if (!latestNavigationEnabled) return@click
                     val itemRoute = item.screen.route
-                    val isSearchTab = itemRoute == Screen.Search.route
-                    val isAlreadySelected = latestCurrentRoute == itemRoute
-
-                    if (isSearchTab) {
-                        val now = SystemClock.elapsedRealtime()
-                        val isDoubleTap = now - lastSearchTapTimestamp <= 350L
-                        lastSearchTapTimestamp = now
-
-                        if (!isAlreadySelected) {
-                            if (!navController.navigateToTopLevelSafely(itemRoute)) {
-                                lastSearchTapTimestamp = 0L
-                                return@click
-                            }
-                        }
-
-                        if (isDoubleTap) {
-                            lastSearchTapTimestamp = 0L
-                            if (isAlreadySelected) {
-                                latestOnSearchIconDoubleTap()
-                            } else {
-                                scope.launch {
-                                    delay(160L)
-                                    latestOnSearchIconDoubleTap()
-                                }
-                            }
-                        }
-                    } else if (!isAlreadySelected) {
-                        lastSearchTapTimestamp = 0L
-                        navController.navigateToTopLevelSafely(itemRoute)
-                    } else {
-                        lastSearchTapTimestamp = 0L
+                    // Read when tapped: two taps within a frame must not act on a route already left.
+                    val liveRoute = navController.currentBackStackEntry?.destination?.route ?: return@click
+                    if (liveRoute == itemRoute) return@click
+                    if (liveRoute == Screen.Search.route && navController.previousBackStackEntry != null) {
+                        // Search opened over a tab (from the Home header) is left first: otherwise the tab's
+                        // stack would be saved with Search on top, and come back with it. The tab right under
+                        // it is simply shown again; any other one is reached as usual, saving the one below.
+                        val underSearch = navController.previousBackStackEntry?.destination?.route == itemRoute
+                        navController.popBackStack()
+                        if (underSearch) return@click
                     }
+                    navController.navigateToTopLevelSafely(itemRoute)
                 }
             }
             CustomNavigationBarItem(
@@ -242,7 +253,6 @@ fun PlayerInternalNavigationBar(
     navBarStyle: String,
     compactMode: Boolean,
     bottomBarPadding: Dp = 0.dp,
-    onSearchIconDoubleTap: () -> Unit = {}
 ) {
     PlayerInternalNavigationItemsRow(
         navController = navController,
@@ -251,7 +261,29 @@ fun PlayerInternalNavigationBar(
         navBarStyle = navBarStyle,
         compactMode = compactMode,
         bottomBarPadding = bottomBarPadding,
-        onSearchIconDoubleTap = onSearchIconDoubleTap,
         modifier = modifier
     )
 }
+
+/**
+ * The next smaller step of [base] after [current], or null once [MIN_LABEL_SP] is reached or the
+ * size is not in sp. Tracking scales with the text, so a shrunk label keeps its proportions.
+ */
+internal fun smallerLabel(base: TextStyle, current: TextStyle): TextStyle? {
+    if (!base.fontSize.isSp || !current.fontSize.isSp) return null
+    val now = current.fontSize.value
+    if (now <= MIN_LABEL_SP) return null
+    return labelAt(base, (now - LABEL_STEP_SP).coerceAtLeast(MIN_LABEL_SP))
+}
+
+/** [base] at [size] sp, never larger than its own size, with tracking in proportion. */
+internal fun labelAt(base: TextStyle, size: Float): TextStyle {
+    if (!base.fontSize.isSp || size >= base.fontSize.value) return base
+    val tracking = base.letterSpacing.takeIf { it.isSp }
+        ?.let { (it.value * size / base.fontSize.value).sp } ?: base.letterSpacing
+    return base.copy(fontSize = size.sp, letterSpacing = tracking)
+}
+
+// Low enough for the longest label ("Медиатека") on a 320 dp wide window at 130 % font scale.
+private const val MIN_LABEL_SP = 6f
+private const val LABEL_STEP_SP = 0.5f

@@ -139,7 +139,7 @@ private fun CustomPresetItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = preset.displayName.firstOrNull()?.toString()?.uppercase() ?: "C",
+                    text = presetLabel(preset).firstOrNull()?.toString()?.uppercase() ?: "C",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     fontFamily = GoogleSansRounded
@@ -148,7 +148,7 @@ private fun CustomPresetItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
-                    text = preset.displayName,
+                    text = presetLabel(preset),
                     style = MaterialTheme.typography.bodyLarge,
                     fontFamily = GoogleSansRounded,
                     fontWeight = FontWeight.Medium

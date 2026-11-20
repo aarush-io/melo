@@ -99,7 +99,7 @@ internal fun MiniPlayerContentInternal(
             key(song.id) {
                 SmartImage(
                     model = albumArtModel,
-                    contentDescription = "Cover of ${song.title}",
+                    contentDescription = stringResource(R.string.melo_cover_of, song.title),
                     shape = CircleShape,
                     targetSize = Size(150, 150),
                     modifier = Modifier.size(44.dp),
@@ -135,8 +135,8 @@ internal fun MiniPlayerContentInternal(
 
             AutoScrollingText(
                 text = when {
-                    isCastConnecting -> "Connecting to device…"
-                    isPreparingPlayback -> "Preparing playback…"
+                    isCastConnecting -> stringResource(R.string.melo_connecting)
+                    isPreparingPlayback -> stringResource(R.string.melo_preparing)
                     else -> song.title
                 },
                 style = titleStyle,
@@ -144,7 +144,7 @@ internal fun MiniPlayerContentInternal(
                 canScroll = canScroll
             )
             AutoScrollingText(
-                text = if (isPreparingPlayback) "Loading audio…" else song.displayArtist,
+                text = if (isPreparingPlayback) stringResource(R.string.melo_loading_audio) else song.displayArtist,
                 style = artistStyle,
                 gradientEdgeColor = LocalMaterialTheme.current.primaryContainer,
                 canScroll = canScroll
@@ -169,7 +169,7 @@ internal fun MiniPlayerContentInternal(
         ) {
             Icon(
                 imageVector = Icons.Rounded.SkipPrevious,
-                contentDescription = "Anterior",
+                contentDescription = stringResource(R.string.melo_previous),
                 tint = LocalMaterialTheme.current.primary,
                 modifier = Modifier.size(22.dp)
             )
@@ -223,7 +223,7 @@ internal fun MiniPlayerContentInternal(
         ) {
             Icon(
                 imageVector = Icons.Rounded.SkipNext,
-                contentDescription = "Siguiente",
+                contentDescription = stringResource(R.string.melo_next),
                 tint = LocalMaterialTheme.current.primary,
                 modifier = Modifier.size(22.dp)
             )

@@ -105,6 +105,8 @@ class MeloPlaybackService : MediaSessionService() {
             MusicSource.Spotify -> "spotify_catalog"
             MusicSource.YouTubeMusic -> "youtube_music"
             MusicSource.Local -> "local"
+            // The stats API has no SoundCloud bucket yet; "other" is the one it accepts.
+            MusicSource.SoundCloud -> "other"
         }
         fun recordTrackStart() {
             val id = player.currentMediaItem?.mediaId ?: return
@@ -206,7 +208,11 @@ class MeloPlaybackService : MediaSessionService() {
                     else ExoPlayer.PreloadConfiguration.DEFAULT
                 }
         }
-        val intent = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
+        // The launcher's own intent: a tap on the notification brings the open app back instead of
+        // stacking a second copy of it, with its own model and its own My Wave, on top.
+        val launch = Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        val intent = PendingIntent.getActivity(this, 0, launch,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         mediaSession = MediaSession.Builder(this, player).setSessionActivity(intent)
             .setCallback(object : MediaSession.Callback {
@@ -247,9 +253,9 @@ class MeloPlaybackService : MediaSessionService() {
     internal class YouTubeChain(val recent: CacheDataSource.Factory, val kept: CacheDataSource.Factory)
 
     internal companion object {
-        /** Downloads first, then the recent cache, then the network. Nothing is written to downloads while listening. */
+        /** YouTube Music and SoundCloud: downloads first, then the recent cache, then the network. Nothing is written to downloads while listening. */
         fun youTubeCacheChain(context: android.content.Context): YouTubeChain {
-            val youtube = YouTubeDataSource.Factory(context)
+            val youtube = DirectDataSourceFactory(context)
             val flags = CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
             val recent = CacheDataSource.Factory().setCache(AudioCache.cache(context)).setCacheKeyFactory(AudioCache.keys)
                 .setUpstreamDataSourceFactory(youtube).setFlags(flags)

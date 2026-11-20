@@ -71,7 +71,7 @@ internal class QueuePreloader(
         // Resume incomplete listens after a process restart too.
         scope.launch {
             val interrupted = withContext(Dispatchers.IO) {
-                index.all().filter { it.lastPlayedMs > 0 && it.track.id.startsWith("spotify:track:") && it.file?.isYouTube != true && !AudioCache.isAvailableOffline(app, it.track.id) }
+                index.all().filter { it.lastPlayedMs > 0 && it.track.id.startsWith("spotify:track:") && it.file?.isDirect != true && !AudioCache.isAvailableOffline(app, it.track.id) }
                     .sortedByDescending { it.lastPlayedMs }.map { it.track }
             }
             interrupted.forEach { heard.putIfAbsent(it.id, it) }
@@ -109,9 +109,9 @@ internal class QueuePreloader(
                 withContext(Dispatchers.IO) {
                     val kept = DownloadCenter.downloads.value.values.filter { it.isComplete }
                         .filter { it.track.id in ids }
-                        .mapNotNull { index.record(it.track.id)?.file }.filterNot { it.isYouTube }
+                        .mapNotNull { index.record(it.track.id)?.file }.filterNot { it.isDirect }
                     val recent = AudioCache.entries(app).filter { it.isComplete && it.track.id in ids }
-                        .mapNotNull { index.record(it.track.id)?.file }.filterNot { it.isYouTube }
+                        .mapNotNull { index.record(it.track.id)?.file }.filterNot { it.isDirect }
                     val keys = NativeKeyStore(app, session.username())
                     (kept + recent).map { it.hex }.distinct().filter { keys.load(it) == null }
                 }
@@ -162,7 +162,7 @@ internal class QueuePreloader(
                 val queue = items.filter { it.localConfiguration?.uri?.scheme == "spotify" }.map(::musicOf)
                 val targets = (queue.take(1) + queue.drop(1) + heard.values.toList().asReversed().take(10))
                     .filterNot(Music::isLocalTrack).distinctBy(Music::id)
-                fillYouTube(items.drop(1).filter { YouTubeUris.isYouTube(it.localConfiguration?.uri) }.take(MAX_YOUTUBE_AHEAD), s)
+                fillYouTube(items.drop(1).filter { DirectUris.isDirect(it.localConfiguration?.uri) }.take(MAX_YOUTUBE_AHEAD), s)
                 // Keep the prioritized prefix within the cache budget. A huge queue must not
                 // evict its first files just to fetch its tail, then download them all again.
                 var plannedBytes = 0L
@@ -204,7 +204,7 @@ internal class QueuePreloader(
             val uri = item.localConfiguration?.uri ?: continue
             val available = withContext(Dispatchers.IO) { AudioCache.isAvailableOffline(app, item.mediaId) }
             if (available) continue
-            val spec = DataSpec.Builder().setUri(uri).setKey(YouTubeUris.cacheKey(item.mediaId)).build()
+            val spec = DataSpec.Builder().setUri(uri).setKey(DirectUris.cacheKey(item.mediaId)).build()
             val writer = CacheWriter(sources.createDataSourceForDownloading(), spec, null, null)
             try { withContext(Dispatchers.IO) { runInterruptible { writer.cache() } } }
             catch (cancelled: CancellationException) { throw cancelled }
@@ -293,7 +293,7 @@ internal class PlaybackRecovery(
             for ((position, item) in targets) {
                 if (player.currentMediaItemIndex != current || NetworkMonitor.online.value) return@launch
                 val scheme = item.localConfiguration?.uri?.scheme
-                if (scheme == YouTubeUris.SCHEME) {
+                if (scheme == YouTubeUris.SCHEME || scheme == SoundCloudUris.SCHEME) {
                     if (!withContext(Dispatchers.IO) { AudioCache.isAvailableOffline(app, item.mediaId) }) continue
                 } else if (scheme == "spotify") {
                     val file = withContext(Dispatchers.IO) {
@@ -338,6 +338,9 @@ internal class ResilientLoadPolicy : DefaultLoadErrorHandlingPolicy() {
         val youtube = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }.take(8)
             .filterIsInstance<`in`.melo.data.youtube.YouTubeFailure>().firstOrNull()
         if (youtube != null && youtube.status in PERMANENT_YOUTUBE_FAILURES) return C.TIME_UNSET
+        val soundcloud = generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }.take(8)
+            .filterIsInstance<`in`.melo.data.soundcloud.SoundCloudFailure>().firstOrNull()
+        if (soundcloud != null && soundcloud.status in `in`.melo.data.soundcloud.SoundCloudFailure.PERMANENT) return C.TIME_UNSET
         val base = super.getRetryDelayMsFor(loadErrorInfo)
         return if (base == C.TIME_UNSET) base else minOf(base, MAX_RETRY_DELAY_MS)
     }

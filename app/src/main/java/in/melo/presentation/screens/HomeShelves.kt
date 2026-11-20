@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import `in`.melo.ui.theme.GoogleSansRounded
 import androidx.compose.ui.layout.ContentScale
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import `in`.melo.R
 import `in`.melo.ui.theme.MeloLayout
 import `in`.melo.data.Music
 import `in`.melo.data.MusicKind
@@ -64,7 +66,7 @@ private fun CardTexts(item: Music, centered: Boolean, modifier: Modifier) {
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = if (centered) TextAlign.Center else TextAlign.Start,
         )
         Text(
-            item.subtitle.ifBlank { item.kind.label }, Modifier.fillMaxWidth().padding(top = MeloLayout.Space1),
+            item.subtitle.ifBlank { stringResource(item.kind.labelRes) }, Modifier.fillMaxWidth().padding(top = MeloLayout.Space1),
             fontFamily = GoogleSansRounded, fontWeight = FontWeight.Normal,
             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = if (centered) TextAlign.Center else TextAlign.Start,

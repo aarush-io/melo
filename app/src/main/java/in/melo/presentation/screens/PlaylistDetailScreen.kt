@@ -131,6 +131,8 @@ fun PlaylistDetailScreen(model: MeloModel, navController: NavHostController, pla
     val isLiked = playlistId == ui.likedSongs.id
     val isLocalList = playlistId.startsWith(LOCAL_PLAYLIST_PREFIX)
     val isYouTubeList = playlistId.startsWith(`in`.melo.data.youtube.YTM_PLAYLIST_PREFIX)
+    // SoundCloud playlists and the linked likes are read-only: nothing is written to SoundCloud.
+    val isSoundCloudList = `in`.melo.data.soundcloud.isSoundCloudId(playlistId)
     val google by model.youTubeAccount.collectAsStateWithLifecycle()
     val youTubeEditable by model.youTubeEditable.collectAsStateWithLifecycle()
     val youTubePlaylists by model.youTubePlaylists.collectAsStateWithLifecycle()
@@ -150,7 +152,7 @@ fun PlaylistDetailScreen(model: MeloModel, navController: NavHostController, pla
     var addingSuggestion by remember { mutableStateOf<String?>(null) }
     var suggestionRevision by remember { mutableStateOf(0) }
     LaunchedEffect(playlistId, current.ownerUsername, online) {
-        if (!isLocalList && !isYouTubeList && !isLiked && online) {
+        if (!isLocalList && !isYouTubeList && !isSoundCloudList && !isLiked && online) {
             isOwned = runCatching {
                 current.ownerUsername?.let { it == SpotifyAccount.require(context).username() } ?: model.spotifyPlaylists.isOwned(playlistId)
             }.getOrDefault(false)
@@ -230,6 +232,7 @@ fun PlaylistDetailScreen(model: MeloModel, navController: NavHostController, pla
     val sourceName = when {
         isLocalList -> stringResource(R.string.badge_local)
         isYouTubeList -> stringResource(R.string.search_source_youtube)
+        isSoundCloudList -> stringResource(R.string.search_source_soundcloud)
         else -> null
     }
     CollectionDetailLayout(
@@ -244,7 +247,7 @@ fun PlaylistDetailScreen(model: MeloModel, navController: NavHostController, pla
                 add(downloadAction(ui, current))
                 if (editable) add(ActionSpec(DetailAction.ADD_TRACKS, Icons.Rounded.Add, stringResource(R.string.playlist_add_tracks),
                     { addingTracks = true }, enabled = isLocalList || online))
-                if (!isLocalList && !isYouTubeList && !isLiked && discovery.spotifyEnabled) add(ActionSpec(DetailAction.SAVE,
+                if (!isLocalList && !isYouTubeList && !isSoundCloudList && !isLiked && discovery.spotifyEnabled) add(ActionSpec(DetailAction.SAVE,
                     if (playlistId in saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     stringResource(if (playlistId in saved) R.string.saved_remove else R.string.saved_add), { model.toggleFavorite(current) },
                     selected = playlistId in saved))
@@ -256,7 +259,7 @@ fun PlaylistDetailScreen(model: MeloModel, navController: NavHostController, pla
                     selected = reordering))
                 if (editable) add(ActionSpec(DetailAction.EDIT, Icons.Rounded.Edit, stringResource(R.string.detail_edit), { renaming = true },
                     enabled = isLocalList || online))
-                if (!isLocalList && !isYouTubeList && discovery.spotifyEnabled) add(ActionSpec(DetailAction.RADIO, Icons.Rounded.Radio, stringResource(R.string.radio_related),
+                if (isSoundCloudList || (!isLocalList && !isYouTubeList && discovery.spotifyEnabled)) add(ActionSpec(DetailAction.RADIO, Icons.Rounded.Radio, stringResource(R.string.radio_related),
                     { ui.startRadio(current) { navController.openMusic(ui, it) } }))
                 if (current.spotifyShareUrl() != null) add(ActionSpec(DetailAction.SHARE, Icons.Rounded.Share, stringResource(R.string.detail_share),
                     { shareContext.shareMusic(current) }))

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Player -->
+    <string name="common_repeat">Répéter</string>
+    <string name="common_favorite">Favori</string>
+    <string name="lyrics_show_controls">Afficher les commandes</string>
+    <string name="player_playback_position">Position de lecture</string>
+    <string name="album_art_placeholder">Image de substitution pour %1$s</string>
+
+    <!-- Cast -->
+    <string name="cast_manage_radios">Gérez les connexions actives et relancez la recherche</string>
+    <string name="cast_tap_to_connect">Touchez pour vous connecter</string>
+    <string name="cast_no_devices">Aucun appareil pour l\'instant</string>
+
+    <!-- Library -->
+    <string name="library_playlist_view">Vue playlist</string>
+
+    <!-- Podcasts -->
+    <string name="podcast_search_failed">La recherche de podcasts a échoué.</string>
+    <string name="podcast_load_failed">Impossible de charger ce podcast.</string>
+
+    <!-- Music kinds -->
+    <string name="kind_track">Titre</string>
+
+    <!-- Album art palette styles -->
+    <string name="palette_style_tonal_spot">Ton sur ton</string>
+    <string name="palette_style_vibrant">Éclatant</string>
+    <string name="palette_style_expressive">Expressif</string>
+    <string name="palette_style_fruit_salad">Salade de fruits</string>
+
+    <!-- Collage patterns -->
+    <string name="collage_pattern_cosmic_swirl">Tourbillon cosmique</string>
+    <string name="collage_pattern_honeycomb_groove">Nid d\'abeilles</string>
+    <string name="collage_pattern_vinyl_stack">Pile de vinyles</string>
+    <string name="collage_pattern_pixel_mosaic">Mosaïque de pixels</string>
+    <string name="collage_pattern_stardust_scatter">Poussière d\'étoiles</string>
+
+    <!-- Equalizer presets (rendered uppercase) -->
+    <string name="eq_preset_flat">Plat</string>
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_hip_hop">Hip-hop</string>
+    <string name="eq_preset_jazz">Jazz</string>
+    <string name="eq_preset_classical">Classique</string>
+    <string name="eq_preset_electronic">Électro</string>
+    <string name="eq_preset_bass_boost">Basses renforcées</string>
+    <string name="eq_preset_treble_boost">Aigus renforcés</string>
+    <string name="eq_preset_vocal">Voix</string>
+    <string name="eq_preset_custom">Personnalisé</string>
+</resources>

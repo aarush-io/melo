@@ -73,12 +73,18 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -88,9 +94,23 @@ import java.util.Locale
 import java.util.UUID
 import `in`.melo.utils.parseSongCount
 import `in`.melo.utils.formatSongCount
+import `in`.melo.data.soundcloud.SC_LIKES_PREFIX
+import `in`.melo.data.soundcloud.SC_PLAYLIST_PREFIX
+import `in`.melo.data.soundcloud.SC_TRACK_PREFIX
+import `in`.melo.data.soundcloud.SC_USER_PREFIX
+import `in`.melo.data.soundcloud.SoundCloud
+import `in`.melo.data.soundcloud.SoundCloudFailure
+import `in`.melo.data.soundcloud.SoundCloudPage
+import `in`.melo.data.soundcloud.SoundCloudProfile
+import `in`.melo.data.soundcloud.decodeSoundCloudProfile
+import `in`.melo.data.soundcloud.encodeSoundCloudProfile
+import `in`.melo.data.soundcloud.isSoundCloudId
+import `in`.melo.data.soundcloud.isSoundCloudTrack
+import `in`.melo.data.soundcloud.soundCloudNumericId
+import `in`.melo.data.soundcloud.soundCloudTrackId
 
-/** What a search reads. [All], the default, mixes Spotify (with an account), YouTube Music and device files. */
-enum class SearchSource { All, Spotify, YouTubeMusic, Local }
+/** What a search reads. [All], the default, mixes Spotify (with an account), YouTube Music, SoundCloud and device files. */
+enum class SearchSource { All, Spotify, YouTubeMusic, SoundCloud, Local }
 
 data class Discovery(
     val query: String = "",
@@ -100,13 +120,15 @@ data class Discovery(
     val nextPage: String? = null,
     /** YouTube Music's continuation token. */
     val youTubeNext: String? = null,
+    /** SoundCloud's next page address. */
+    val soundCloudNext: String? = null,
     val error: String? = null,
     val spotifyEnabled: Boolean = false,
     val source: SearchSource = SearchSource.All,
 ) {
     /** The source actually searched: Spotify needs an account. */
     val activeSource: SearchSource get() = if (!spotifyEnabled && source == SearchSource.Spotify) SearchSource.All else source
-    val hasMore: Boolean get() = nextPage != null || youTubeNext != null
+    val hasMore: Boolean get() = nextPage != null || youTubeNext != null || soundCloudNext != null
 }
 
 data class AccountUi(
@@ -204,7 +226,9 @@ private data class HomeRecommendationRequest(
 )
 
 class MeloModel(private val app: Application) : AndroidViewModel(app) {
-    val player = SpotifyPlayer(app, viewModelScope)
+    /** Runs the player connection and My Wave; it outlives the model while a wave plays on (see [onCleared]). */
+    private val playerScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main.immediate)
+    val player = SpotifyPlayer(app, playerScope)
     private val pinnedStore = PinnedStore(app)
     val pins = pinnedStore.pins
     fun togglePin(item: Music) = pinnedStore.toggle(item)
@@ -354,6 +378,207 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
     /** Row identifiers of the account's playlists as last read, to remove one row. Main thread only. */
     private val youTubeRows = HashMap<String, YouTubeAccountPlaylist>()
     private var youTubeJob: Job? = null
+
+    // SoundCloud ----------------------------------------------------------------------------------
+
+    private val mutableSoundCloudProfile = MutableStateFlow(decodeSoundCloudProfile(preferences.getString(KEY_SOUNDCLOUD_PROFILE, null)))
+    /** The public SoundCloud profile linked by name: no password, no token. Its likes and playlists show in the library. */
+    val soundCloudProfile = mutableSoundCloudProfile.asStateFlow()
+    private val mutableSoundCloudPlaylists = MutableStateFlow(decodePins(preferences.getString(KEY_SOUNDCLOUD_PLAYLISTS, null)))
+    /** The linked profile's likes (one playlist, first) and its own or liked playlists, as last read. */
+    val soundCloudPlaylists = mutableSoundCloudPlaylists.asStateFlow()
+    private val mutableSoundCloudLoading = MutableStateFlow(false)
+    val soundCloudLoading = mutableSoundCloudLoading.asStateFlow()
+    private var soundCloudJob: Job? = null
+    /** The profile [soundCloudJob] reads. */
+    private var soundCloudJobProfile = 0L
+
+    /** Links a public profile by name or address, then reads its likes and playlists. [done] gets an error text or null. */
+    fun linkSoundCloud(input: String, done: (String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val profile = withContext(Dispatchers.IO) { SoundCloud.profile(input) }
+                val previous = mutableSoundCloudProfile.value
+                if (profile.id != previous?.id) {
+                    // A read of the previous profile must not land under this one: it ends before its likes are removed.
+                    soundCloudJob?.cancelAndJoin()
+                    installSoundCloudPlaylists(emptyList())
+                    previous?.likesId?.let { old ->
+                        mutableDetails.update { it - old }
+                        launch(Dispatchers.IO) { store.removeDetail(old) }
+                    }
+                }
+                mutableSoundCloudProfile.value = profile
+                preferences.edit { putString(KEY_SOUNDCLOUD_PROFILE, encodeSoundCloudProfile(profile)) }
+                done(null)
+                refreshSoundCloudLibrary(report = true)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: SoundCloudFailure) {
+                done(app.getString(if (failure.status == SoundCloudFailure.STATUS_NOT_FOUND) `in`.melo.R.string.soundcloud_profile_not_found
+                    else `in`.melo.R.string.soundcloud_unreachable))
+            } catch (failure: Exception) { done(readable(failure)) }
+        }
+    }
+
+    /** Forgets the linked profile and what was read from it. Nothing changes on SoundCloud. */
+    fun unlinkSoundCloud() {
+        val reading = soundCloudJob
+        reading?.cancel()
+        val likes = mutableSoundCloudProfile.value?.likesId
+        mutableSoundCloudProfile.value = null
+        mutableSoundCloudPlaylists.value = emptyList()
+        preferences.edit { remove(KEY_SOUNDCLOUD_PROFILE); remove(KEY_SOUNDCLOUD_PLAYLISTS) }
+        if (likes != null) {
+            mutableDetails.update { it - likes }
+            // After a read in progress has ended, so that it cannot save the likes again.
+            viewModelScope.launch(Dispatchers.IO) { reading?.join(); store.removeDetail(likes) }
+        }
+    }
+
+    /** Reads the linked profile's likes and playlists again. [report] shows a failure instead of keeping it quiet. */
+    fun refreshSoundCloudLibrary(report: Boolean = false) {
+        val profile = mutableSoundCloudProfile.value ?: return
+        if (!online.value) return
+        soundCloudJob?.takeIf { it.isActive }?.let { running ->
+            // A read of this profile is already under way; one of another profile is replaced.
+            if (soundCloudJobProfile == profile.id) return
+            running.cancel()
+        }
+        soundCloudJobProfile = profile.id
+        soundCloudJob = viewModelScope.launch {
+            mutableSoundCloudLoading.value = true
+            try {
+                // Interruptible: a cancelled read stops its requests instead of reading every page.
+                val library = runInterruptible(Dispatchers.IO) { SoundCloud.library(profile) }
+                // The profile was unlinked or replaced while it was read.
+                if (mutableSoundCloudProfile.value?.id != profile.id) return@launch
+                val likes = Music(
+                    profile.likesId, app.getString(`in`.melo.R.string.soundcloud_likes_title), formatSongCount(library.likes.size),
+                    MusicKind.Playlist, imageUrl = library.likes.firstOrNull()?.imageUrl ?: profile.avatarUrl,
+                    tracks = library.likes.map(Music::id), ownerUsername = profile.permalink,
+                )
+                val detail = CatalogDetail(likes, library.likes, total = library.likes.size)
+                ui.register(likes)
+                mutableDetails.update { it + (likes.id to DetailUi(detail)) }
+                withContext(Dispatchers.IO) { store.saveDetail(likes.id, detail) }
+                installSoundCloudPlaylists(listOf(likes) + library.playlists)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                // An interrupted read fails with an I/O error: a cancelled read reports nothing.
+                ensureActive()
+                `in`.melo.data.diagnostics.DiagnosticLog.record("soundcloud-library", "${failure.javaClass.simpleName} \"${failure.message}\"")
+                mutableDetails.update { details ->
+                    val shown = details[profile.likesId] ?: return@update details
+                    details + (profile.likesId to DetailUi(shown.content, error = if (shown.content == null) readable(failure) else null))
+                }
+                if (report) mutableMessage.value = readable(failure)
+            } finally {
+                // A cancelled read leaves the indicator to the read that replaced it.
+                if (coroutineContext[Job] == soundCloudJob) mutableSoundCloudLoading.value = false
+            }
+        }
+    }
+
+    private fun installSoundCloudPlaylists(playlists: List<Music>) {
+        playlists.forEach { ui.register(it) }
+        mutableSoundCloudPlaylists.value = playlists
+        preferences.edit { putString(KEY_SOUNDCLOUD_PLAYLISTS, encodePins(playlists)) }
+    }
+
+    /** The linked likes: shown as last read, and read again with the rest of the profile. */
+    private fun loadSoundCloudLikes(item: Music, refresh: Boolean) {
+        val shown = mutableDetails.value[item.id]
+        if (!refresh && shown?.content != null && shown.error == null) return
+        viewModelScope.launch {
+            val known = shown?.content ?: withContext(Dispatchers.IO) { store.loadDetail(item.id) }
+            val linked = mutableSoundCloudProfile.value?.likesId == item.id
+            val reading = linked && online.value
+            mutableDetails.update { it + (item.id to DetailUi(known, loading = reading,
+                error = if (known == null && !reading) app.getString(`in`.melo.R.string.soundcloud_page_failed) else null)) }
+            if (reading) refreshSoundCloudLibrary()
+        }
+    }
+
+    /** SoundCloud playlists, albums and artists: kept on the device like the other services' pages, read again after a day. */
+    private fun loadSoundCloudPage(item: Music, refresh: Boolean) {
+        val shown = mutableDetails.value[item.id]
+        if (!refresh && shown?.content != null && shown.error == null) return
+        if (shown?.loading == true && !refresh) return
+        detailJobs[item.id]?.cancel()
+        detailJobs[item.id] = viewModelScope.launch {
+            val known = shown?.content ?: withContext(Dispatchers.IO) { store.loadDetail(item.id) }
+            val age = withContext(Dispatchers.IO) { store.detailAgeMs(item.id) }
+            if (known != null && (!online.value || (!refresh && age < SOUNDCLOUD_PAGE_TTL_MS))) {
+                mutableDetails.update { it + (item.id to DetailUi(known)) }
+                return@launch
+            }
+            if (!online.value) {
+                mutableDetails.update { it + (item.id to DetailUi(error = app.getString(`in`.melo.R.string.soundcloud_page_failed))) }
+                return@launch
+            }
+            mutableDetails.update { it + (item.id to DetailUi(known, loading = true)) }
+            try {
+                val page = withContext(Dispatchers.IO) { fetchSoundCloudDetail(item) }
+                (page.related + page.item).forEach(ui::register)
+                mutableDetails.update { it + (item.id to DetailUi(page)) }
+                withContext(Dispatchers.IO) { store.saveDetail(item.id, page) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                `in`.melo.data.diagnostics.DiagnosticLog.record("soundcloud-page", "${item.kind.name.lowercase()} ${failure.javaClass.simpleName} \"${failure.message}\"")
+                mutableDetails.update { it + (item.id to if (known != null) DetailUi(known) else DetailUi(error = readable(failure))) }
+            }
+        }
+    }
+
+    /** Reads a SoundCloud playlist, album or artist page. Blocks: call it on an IO thread. */
+    private fun fetchSoundCloudDetail(item: Music): CatalogDetail {
+        val id = soundCloudNumericId(item.id)
+            ?: throw SoundCloudFailure("This is not available on SoundCloud.", SoundCloudFailure.STATUS_NOT_FOUND)
+        val page = when {
+            item.id.startsWith(SC_PLAYLIST_PREFIX) -> SoundCloud.playlist(id)
+            item.id.startsWith(SC_USER_PREFIX) -> SoundCloud.user(id)
+            else -> throw SoundCloudFailure("This is not available on SoundCloud.", SoundCloudFailure.STATUS_NOT_FOUND)
+        }
+        // A playlist shown as an album, or the reverse, keeps the kind it was opened with.
+        return page.copy(item = page.item.copy(kind = item.kind.takeIf { it != MusicKind.Track } ?: page.item.kind))
+    }
+
+    private suspend fun soundCloudTracks(item: Music): List<Music> {
+        mutableDetails.value[item.id]?.content?.let { return it.tracks }
+        val stored = withContext(Dispatchers.IO) { store.loadDetail(item.id) }
+        if (stored != null && (!online.value || item.id.startsWith(SC_LIKES_PREFIX))) return stored.tracks
+        if (online.value && !item.id.startsWith(SC_LIKES_PREFIX)) try {
+            val page = withContext(Dispatchers.IO) { fetchSoundCloudDetail(item) }
+            mutableDetails.update { it + (item.id to DetailUi(page)) }
+            withContext(Dispatchers.IO) { store.saveDetail(item.id, page) }
+            return page.tracks
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: IOException) { /* What the device has is used. */ }
+        return stored?.tracks.orEmpty()
+    }
+
+    /** A SoundCloud station: built from the track, or from the first track of a playlist or artist. */
+    private fun loadSoundCloudStation(seed: Music) {
+        if (!online.value) return
+        viewModelScope.launch {
+            try {
+                val track = if (seed.kind == MusicKind.Track) seed else tracksOf(seed).firstOrNull { it.isSoundCloudTrack }
+                    ?: throw SoundCloudFailure("SoundCloud found nothing similar.", SoundCloudFailure.STATUS_EMPTY)
+                play(withContext(Dispatchers.IO) { SoundCloud.station(track) })
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) { mutableMessage.value = readable(failure) }
+        }
+    }
+
+    private fun readableSoundCloud(failure: SoundCloudFailure): String = app.getString(when (failure.status) {
+        SoundCloudFailure.STATUS_NOT_FOUND -> `in`.melo.R.string.soundcloud_not_found
+        SoundCloudFailure.STATUS_UNAVAILABLE -> `in`.melo.R.string.soundcloud_track_unavailable
+        SoundCloudFailure.STATUS_EMPTY -> `in`.melo.R.string.soundcloud_nothing_similar
+        SoundCloudFailure.STATUS_RATE_LIMITED -> `in`.melo.R.string.soundcloud_rate_limited
+        SoundCloudFailure.STATUS_CLIENT, SoundCloudFailure.STATUS_REFUSED, SoundCloudFailure.STATUS_NO_ACCESS ->`in`.melo.R.string.soundcloud_unreachable
+        else -> `in`.melo.R.string.soundcloud_failed
+    })
+
 
     private var podcastFeedIdentity = podcastListenerKey()
     private var podcastFeedRegion = YouTubeMusic.contentRegion()
@@ -714,6 +939,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         }
         refreshLocalTracks()
         refreshYouTubeLibrary()
+        refreshSoundCloudLibrary()
         loadPodcastFeed()
         viewModelScope.launch {
             // One history entry each time a queue position starts playing.
@@ -735,7 +961,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
             var wasOnline = online.value
             online.collect { now ->
                 if (now) loadPodcastFeed()
-                if (now && !wasOnline) refreshYouTubeLibrary()
+                if (now && !wasOnline) { refreshYouTubeLibrary(); refreshSoundCloudLibrary() }
                 if (now && !wasOnline && collections != null) {
                     sendPendingFavorites()
                     val age = withContext(Dispatchers.IO) { store.libraryAgeMs() }
@@ -765,7 +991,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun toggleFavorite(item: Music) {
-        if (item.kind == MusicKind.Track && item.isYouTubeTrack) { toggleYouTubeLike(item); return }
+        if (item.kind == MusicKind.Track && (item.isYouTubeTrack || item.isSoundCloudTrack)) { toggleYouTubeLike(item); return }
         if (item.isLocalTrack || item.isLocalPlaylist || item.source != `in`.melo.data.MusicSource.Spotify || item.id.startsWith("ytm:")) return
         if (item.kind != MusicKind.Track && item.kind != MusicKind.Album && item.kind != MusicKind.Artist) {
             mutableMessage.value = "This item cannot be changed in your favorites."
@@ -801,13 +1027,16 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** The liked songs with the YouTube Music likes on top, replacing those an earlier merge put there. */
+    /**
+     * The liked songs with the likes kept on the device (YouTube Music and SoundCloud) on top, replacing
+     * those an earlier merge put there.
+     */
     private fun withYouTubeLikes(library: HomeLibrary): HomeLibrary {
         val likes = youTubeLikes.value
-        val spotifyUris = library.savedTrackUris.filterNot { it.startsWith(YTM_TRACK_PREFIX) }
+        val spotifyUris = library.savedTrackUris.filterNot { it.startsWith(YTM_TRACK_PREFIX) || it.startsWith(SC_TRACK_PREFIX) }
         val removed = library.savedTrackUris.size - spotifyUris.size
         return library.copy(
-            savedTracks = likes + library.savedTracks.filterNot { it.isYouTubeTrack },
+            savedTracks = likes + library.savedTracks.filterNot { it.isYouTubeTrack || it.isSoundCloudTrack },
             savedTrackUris = likes.map(Music::id) + spotifyUris,
             savedTrackCount = (library.savedTrackCount - removed).coerceAtLeast(0) + likes.size,
             savedTracksLoaded = (library.savedTracksLoaded - removed).coerceAtLeast(0) + likes.size,
@@ -870,6 +1099,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
 
     fun refreshLibrary() {
         refreshYouTubeLibrary()
+        refreshSoundCloudLibrary()
         val source = collections ?: return
         if (!online.value && mutableLibrary.value.content != null) return
         libraryJob?.cancel()
@@ -1038,6 +1268,8 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         if (item.id.startsWith(`in`.melo.data.youtube.YTM_ALBUM_PREFIX) || item.id.startsWith(`in`.melo.data.youtube.YTM_ARTIST_PREFIX)) {
             loadYouTubePage(item, refresh); return
         }
+        if (item.id.startsWith(SC_LIKES_PREFIX)) { loadSoundCloudLikes(item, refresh); return }
+        if (isSoundCloudId(item.id)) { loadSoundCloudPage(item, refresh); return }
         if (item.id == LIKED_SONGS && catalog == null) {
             // Without a Spotify account the liked songs are the YouTube Music likes kept on the device.
             val saved = mutableLibrary.value.content ?: return
@@ -1654,6 +1886,10 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
 
     /** The tracks that follow [seed] when nothing else was chosen: its radio, without the seed itself. */
     private suspend fun upNext(seed: Music): List<Music> {
+        if (seed.source == `in`.melo.data.MusicSource.SoundCloud) {
+            // A SoundCloud track is followed by its SoundCloud station, never by Spotify's radio.
+            return withContext(Dispatchers.IO) { SoundCloud.station(seed) }.filterNot { it.id == seed.id }
+        }
         if (seed.source == `in`.melo.data.MusicSource.YouTubeMusic ||
             (seed.source == `in`.melo.data.MusicSource.Spotify && catalog == null)) {
             val videoId = seed.youTubeVideoId ?: withContext(Dispatchers.IO) {
@@ -1671,6 +1907,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
 
     fun loadRadio(seed: Music, open: (Music) -> Unit) {
         `in`.melo.data.MeloTelemetry.recordFeature("radio")
+        if (seed.source == `in`.melo.data.MusicSource.SoundCloud) { loadSoundCloudStation(seed); return }
         if (seed.source == `in`.melo.data.MusicSource.YouTubeMusic ||
             (seed.source == `in`.melo.data.MusicSource.Spotify && catalog == null)) {
             if (!online.value || seed.source == `in`.melo.data.MusicSource.Local) return
@@ -1705,6 +1942,100 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
             catch (failure: Exception) { mutableMessage.value = readable(failure) }
         }
     }
+    /** My Wave: an endless queue of tracks similar to what the listener plays (see [MyWaveController]). */
+    private val waveLazy = lazy {
+        MyWaveController(
+            playerScope, player, online,
+            similar = ::similarTracks,
+            coldStart = ::waveColdStart,
+            recentlyHeard = ::waveRecentlyHeard,
+            isLiked = { track -> track.id in favorites.value || youTubeLikes.value.any { it.id == track.id } },
+            describe = ::describeWaveFailure,
+        ).also { fresh ->
+            WaveKeeper.register(fresh)
+            WaveKeeper.takeBack()?.let(fresh::adopt)
+        }
+    }
+    private val wave by waveLazy
+    val myWave: StateFlow<WaveUi> get() = wave.state
+    fun startMyWave() {
+        // A radio still loading behind a track played on its own must not land in the wave.
+        upNextJob?.cancel()
+        upNextJob = null
+        WaveKeeper.stopAll(except = wave)
+        wave.start()
+    }
+    fun dismissMyWaveFailure() = wave.dismissFailure()
+
+    init {
+        // A wave that went on playing while the app was closed comes back to this screen at once.
+        if (WaveKeeper.holds) wave
+    }
+
+    /**
+     * Tracks similar to [seed], from the service it belongs to: SoundCloud stations, Spotify radio
+     * with an account, and otherwise the YouTube Music radio of the track or of its match.
+     */
+    private suspend fun similarTracks(seed: Music): List<Music> {
+        if (seed.isSoundCloudTrack) return withContext(Dispatchers.IO) { SoundCloud.station(seed) }
+        // A wave taken back at start-up must not send Spotify tracks to YouTube Music while the
+        // Spotify session is still being restored.
+        if (seed.source == `in`.melo.data.MusicSource.Spotify) {
+            kotlinx.coroutines.withTimeoutOrNull(SPOTIFY_RESTORE_WAIT_MS) {
+                mutableAccount.first { !it.restoring }
+            }
+        }
+        val spotifyRadio = radio
+        if (seed.source == `in`.melo.data.MusicSource.Spotify && catalog != null && spotifyRadio != null) {
+            return spotifyRadio.station(seed).tracks
+        }
+        val videoId = seed.youTubeVideoId ?: withContext(Dispatchers.IO) {
+            `in`.melo.data.youtube.TrackMatcher.resolve(`in`.melo.data.youtube.MatchQuery(
+                key = seed.id, title = seed.title, artists = seed.subtitle,
+                durationMs = seed.durationMs, album = seed.album,
+            ))
+        } ?: throw YouTubeFailure("YouTube Music could not find this track.")
+        val target = `in`.melo.data.YouTubeWatchTarget("RDAMVM$videoId", videoId)
+        // The account's radio follows its taste; without it, or when it is refused, the public one.
+        val personal = if (!YouTubeAccount.signedIn) null else try {
+            withContext(Dispatchers.IO) { YouTubeLibrary.watchQueue(target, WAVE_RADIO_SIZE) }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (auth: YouTubeAuthRequired) { youTubeAccountLost(auth); null }
+        catch (_: Exception) { null }
+        val queue = personal ?: withContext(Dispatchers.IO) { YouTubeMusic.watchQueue(target, WAVE_RADIO_SIZE) }
+        // The radio opens with the seed's own video: under another title ("Official Video") it would
+        // pass for a different song and play right after the seed.
+        return queue.filterNot { it.id == seed.id || it.youTubeVideoId == videoId }
+    }
+
+    /** With nothing in the player: the last track played, then a liked track, then music for the time of day. */
+    private suspend fun waveColdStart(): WaveStart? {
+        withContext(Dispatchers.IO) { listeningHistory.load() }
+        listeningHistory.entries.value.firstOrNull { player.canPlay(it.track) }?.track?.let { return WaveStart(it, WaveOrigin.HISTORY) }
+        mutableLibrary.value.content?.savedTracks?.take(LIKED_SEEDS)?.randomOrNull()?.let { return WaveStart(it, WaveOrigin.LIKES) }
+        val mood = HomeRecommendationEngine.moodFor(java.time.LocalTime.now().hour)
+        val title = mood.name.lowercase(Locale.ROOT).replace('_', ' ')
+        val tracks = HomeRecommendationEngine.queue(HomeRecommendationPick(
+            item = Music("melo:home-mood:${mood.name}", title, "", MusicKind.Playlist),
+            type = HomeRecommendationType.MOOD, title = title, mood = mood,
+        ))
+        val first = tracks.firstOrNull() ?: return null
+        return WaveStart(first, WaveOrigin.MOOD, opening = tracks)
+    }
+
+    /** The tracks played in the last days, which the wave leaves for later. */
+    private suspend fun waveRecentlyHeard(): List<Music> {
+        withContext(Dispatchers.IO) { listeningHistory.load() }
+        val since = System.currentTimeMillis() - WAVE_HEARD_WINDOW_MS
+        return listeningHistory.entries.value.asSequence().takeWhile { it.playedAt >= since }.take(WAVE_HEARD_LIMIT).map { it.track }.toList()
+    }
+
+    private fun describeWaveFailure(failure: Exception): String = when {
+        !online.value -> app.getString(`in`.melo.R.string.my_wave_offline)
+        failure is WaveEmpty -> app.getString(`in`.melo.R.string.my_wave_failed)
+        else -> readable(failure)
+    }
+
     /** Album and artists of a track, read through the catalogue contract used by detail pages. */
     /**
      * The album and artists of a track. Spotify tracks use Spotify's pages when an account is signed in;
@@ -1714,6 +2045,11 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         if (track.isLocalTrack) return emptyList()
         if (track.source == `in`.melo.data.MusicSource.Spotify && catalog != null) return detailForActions(track)?.related.orEmpty()
         if (!online.value) return emptyList()
+        track.soundCloudTrackId?.let { id ->
+            // SoundCloud tracks have no album page: their uploader is their artist.
+            return try { listOfNotNull(withContext(Dispatchers.IO) { SoundCloud.uploader(id) }?.also(ui::register)) }
+            catch (cancelled: CancellationException) { throw cancelled } catch (_: IOException) { emptyList() }
+        }
         val videoId = track.youTubeVideoId ?: withContext(Dispatchers.IO) {
             `in`.melo.data.youtube.TrackMatcher.resolve(`in`.melo.data.youtube.MatchQuery(
                 key = track.id, title = track.title, artists = track.subtitle, durationMs = track.durationMs, album = track.album,
@@ -1734,6 +2070,8 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
             item.id.startsWith(`in`.melo.data.youtube.YTM_ARTIST_PREFIX) -> withContext(Dispatchers.IO) {
                 `in`.melo.data.youtube.YouTubePages.artist(item.id.removePrefix(`in`.melo.data.youtube.YTM_ARTIST_PREFIX))
             }
+            item.id.startsWith(SC_LIKES_PREFIX) -> null
+            isSoundCloudId(item.id) -> withContext(Dispatchers.IO) { fetchSoundCloudDetail(item) }
             else -> catalog?.detail(item)
         } ?: return null
         withContext(Dispatchers.IO) { store.saveDetail(item.id, fetched) }
@@ -1828,6 +2166,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         }
         item.isLocalPlaylist -> withLocalFiles(localPlaylistStore.get(item.id)?.tracks.orEmpty())
         item.id.startsWith(YTM_PLAYLIST_PREFIX) -> youTubeTracks(item)
+        isSoundCloudId(item.id) && item.kind != MusicKind.Track -> soundCloudTracks(item)
         item.isLocalTrack || item.kind == MusicKind.Track -> withLocalFiles(listOf(item))
         else -> {
             val known = detailForActions(item) ?: return emptyList()
@@ -1847,10 +2186,13 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         upNextJob?.cancel()
         upNextJob = null
         val tracks = withLocalFiles(queue)
-        val selected = tracks.getOrNull(index)
-        if (selected != null && selected.isLocalTrack && selected.mediaUri == null) {
+        val selected = tracks.getOrNull(index) ?: return
+        if (selected.isLocalTrack && selected.mediaUri == null) {
             mutableMessage.value = app.getString(`in`.melo.R.string.local_file_missing, selected.title); return
         }
+        if (!player.canPlay(selected)) return
+        // Anything the listener starts replaces My Wave, wherever it runs.
+        WaveKeeper.stopAll()
         player.play(tracks, index)
     }
 
@@ -1881,7 +2223,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         // What is on screen stays until the first source answers for the new text: no blank list while typing.
         mutableDiscovery.update {
             it.copy(query = query, results = if (trimmed.length < 2) emptyList() else it.results,
-                nextPage = null, youTubeNext = null, error = null, loading = trimmed.length >= 2)
+                nextPage = null, youTubeNext = null, soundCloudNext = null, error = null, loading = trimmed.length >= 2)
         }
         if (trimmed.length < 2) return
         `in`.melo.data.MeloTelemetry.recordFeature("search")
@@ -1908,23 +2250,33 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         searchJob = viewModelScope.launch {
             if (debounce) delay(SEARCH_DEBOUNCE_MS)
             val started = android.os.SystemClock.elapsedRealtime()
-            val spotify = remote.takeIf { choice == SearchSource.All || choice == SearchSource.Spotify }
-            val withYouTube = choice == SearchSource.All || choice == SearchSource.YouTubeMusic
+            // A pasted soundcloud.com link opens what it points to; the other services would only search its text.
+            val link = `in`.melo.data.soundcloud.soundCloudLink(query)?.takeIf { choice == SearchSource.All || choice == SearchSource.SoundCloud }
+            val spotify = remote.takeIf { link == null && (choice == SearchSource.All || choice == SearchSource.Spotify) }
+            val withYouTube = link == null && (choice == SearchSource.All || choice == SearchSource.YouTubeMusic)
+            val withSoundCloud = choice == SearchSource.All || choice == SearchSource.SoundCloud
             val locale = app.resources.configuration.locales.get(0) ?: Locale.getDefault()
             var spotifyItems: List<Music>? = null
             var youTubeMixed: List<Music>? = null
             var youTubeSongs: List<Music>? = null
+            var soundCloudItems: List<Music>? = null
             val device = if (choice == SearchSource.All) matchingDeviceFiles(query) else emptyList()
             val failures = ArrayList<Throwable>()
-            var pending = (if (spotify != null) 1 else 0) + (if (withYouTube) 2 else 0)
+            var pending = (if (spotify != null) 1 else 0) + (if (withYouTube) 2 else 0) + (if (withSoundCloud) 1 else 0)
             fun publish() {
                 val youTube = (youTubeMixed.orEmpty() + youTubeSongs.orEmpty()).distinctBy(Music::id)
-                val results = if (choice == SearchSource.Spotify) spotifyItems.orEmpty()
-                    else `in`.melo.data.SearchRanking.merge(query, listOfNotNull(
+                val results = when (choice) {
+                    SearchSource.Spotify -> spotifyItems.orEmpty()
+                    SearchSource.SoundCloud -> soundCloudItems.orEmpty()
+                    // SoundCloud comes after the other services: a song they also have shows their version,
+                    // while uploads only SoundCloud has (remixes, sets, independent artists) stay.
+                    else -> `in`.melo.data.SearchRanking.merge(query, listOfNotNull(
                         spotifyItems?.let { `in`.melo.data.SearchRanking.Source(it, 1.0) },
                         `in`.melo.data.SearchRanking.Source(youTube, if (spotify != null) 0.97 else 1.0),
+                        soundCloudItems?.let { `in`.melo.data.SearchRanking.Source(it, 0.95) },
                         `in`.melo.data.SearchRanking.Source(device, 1.02, deduplicated = false),
                     ))
+                }
                 val finished = pending == 0
                 if (finished && results.isEmpty() && failures.isNotEmpty()) { showLocalResults(query, readableSearchFailure(failures.first())); return }
                 if (!finished && results.isEmpty()) return
@@ -1950,11 +2302,22 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
                     mutableDiscovery.update { it.copy(youTubeNext = page.next) }
                 }
             }
+            if (withSoundCloud) {
+                source("soundcloud", {
+                    withContext(Dispatchers.IO) {
+                        if (link != null) SoundCloudPage(listOf(SoundCloud.resolve(link))) else SoundCloud.search(query)
+                    }
+                }) { page ->
+                    soundCloudItems = page.items
+                    mutableDiscovery.update { it.copy(soundCloudNext = page.next) }
+                }
+            }
         }
     }
 
     private fun readableSearchFailure(failure: Throwable): String = when (failure) {
         is `in`.melo.data.youtube.YouTubeFailure -> app.getString(`in`.melo.R.string.youtube_search_failed)
+        is SoundCloudFailure -> app.getString(`in`.melo.R.string.soundcloud_search_failed)
         is SpotifyFailure -> failure.message.orEmpty()
         is InvalidProtocolBufferException -> "Unexpected Spotify response format."
         else -> "The search was interrupted."
@@ -1967,22 +2330,27 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         val query = state.query.trim()
         val spotifyToken = state.nextPage
         val youTubeToken = state.youTubeNext
+        val soundCloudToken = state.soundCloudNext
         mutableDiscovery.update { it.copy(loading = true, error = null) }
         searchJob = viewModelScope.launch {
             val locale = app.resources.configuration.locales.get(0) ?: Locale.getDefault()
             val spotify = async { spotifyToken?.let { token -> remote?.let { source -> runCatching { source.search(query, locale, token) } } } }
             val youTube = async(Dispatchers.IO) { youTubeToken?.let { token -> runCatching { `in`.melo.data.youtube.YouTubeMusic.searchMore(token) } } }
+            val soundCloud = async(Dispatchers.IO) { soundCloudToken?.let { next -> runCatching { SoundCloud.more(next) } } }
             val spotifyPage = spotify.await()
             val youTubePage = youTube.await()
+            val soundCloudPage = soundCloud.await()
             val added = `in`.melo.data.SearchRanking.merge(query, listOfNotNull(
                 spotifyPage?.getOrNull()?.items?.let { `in`.melo.data.SearchRanking.Source(it) },
                 youTubePage?.getOrNull()?.tracks?.let { `in`.melo.data.SearchRanking.Source(it, 0.97) },
+                soundCloudPage?.getOrNull()?.items?.let { `in`.melo.data.SearchRanking.Source(it, 0.95) },
             ))
-            val failed = listOfNotNull(spotifyPage?.exceptionOrNull(), youTubePage?.exceptionOrNull()).firstOrNull()
+            val failed = listOfNotNull(spotifyPage?.exceptionOrNull(), youTubePage?.exceptionOrNull(), soundCloudPage?.exceptionOrNull()).firstOrNull()
             mutableDiscovery.update {
                 it.copy(loading = false, results = (it.results + added).distinctBy(Music::id),
                     nextPage = spotifyPage?.getOrNull()?.nextToken?.takeUnless { next -> next == spotifyToken },
                     youTubeNext = youTubePage?.getOrNull()?.next?.takeUnless { next -> next == youTubeToken },
+                    soundCloudNext = soundCloudPage?.getOrNull()?.next?.takeUnless { next -> next == soundCloudToken },
                     error = failed?.takeIf { _ -> added.isEmpty() }?.let(::readableSearchFailure))
             }
         }
@@ -2169,10 +2537,17 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
     fun clearDiagnostics() = `in`.melo.data.diagnostics.DiagnosticLog.clear()
 
     override fun onCleared() {
+        SoundCloud.flushPermalinks()
         spotifyPlaylists.close()
-        player.close()
+        val closePlayer = { player.close(); playerScope.cancel() }
+        // The service plays on when the app is swiped away: a wave that plays keeps growing until the
+        // next model takes it back. Paused, it lets the service stop.
+        if (!waveLazy.isInitialized()) { closePlayer(); return }
+        if (wave.running && wavePlaying(player.state.value)) WaveKeeper.keep(wave, closePlayer)
+        else { WaveKeeper.unregister(wave); closePlayer() }
     }
     private fun readable(failure: Exception): String = when (failure) {
+        is SoundCloudFailure -> readableSoundCloud(failure)
         is SpotifyFailure -> failure.message ?: "Spotify is unavailable. Try again."
         is InvalidProtocolBufferException -> "The Spotify response could not be read."
         is IOException -> "The connection to Spotify was interrupted. Try again."
@@ -2189,6 +2564,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
                 search.search(text, locale, null).items.filter { it.kind == MusicKind.Track }
             }
             TRACKS_YOUTUBE -> withContext(Dispatchers.IO) { `in`.melo.data.youtube.YouTubeMusic.search(text).tracks }
+            TRACKS_SOUNDCLOUD -> withContext(Dispatchers.IO) { SoundCloud.searchTracks(text) }
             else -> withContext(Dispatchers.Default) {
                 val wanted = text.lowercase()
                 mutableLocalTracks.value.filter { it.title.lowercase().contains(wanted) || it.subtitle.lowercase().contains(wanted) || it.album.lowercase().contains(wanted) }
@@ -2349,8 +2725,16 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         return createImported(imported.name, completeSpotifyTracks(imported.tracks))
     }
 
-    /** A YouTube, YouTube Music or Spotify playlist link, copied as a multi-service playlist. */
+    /** A YouTube, YouTube Music, SoundCloud or Spotify playlist link, copied as a multi-service playlist. */
     suspend fun importLink(link: String): Music {
+        `in`.melo.data.soundcloud.soundCloudLink(link)?.let { address ->
+            val (title, tracks) = withContext(Dispatchers.IO) {
+                val item = SoundCloud.resolve(address)
+                item.title to if (item.kind == MusicKind.Track) listOf(item) else fetchSoundCloudDetail(item).tracks
+            }
+            if (tracks.isEmpty()) throw IllegalArgumentException(app.getString(`in`.melo.R.string.import_no_tracks))
+            return createImported(title, tracks)
+        }
         `in`.melo.data.youtube.youTubePlaylistId(link)?.let { id ->
             val playlist = withContext(Dispatchers.IO) { `in`.melo.data.youtube.YouTubeMusic.playlist(id) }
             return createImported(playlist.title, playlist.tracks)
@@ -2387,11 +2771,23 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
         const val LIKED_SONGS = "spotify:collection:tracks"
+        /** Tracks asked from a YouTube Music radio for one batch of My Wave. */
+        private const val WAVE_RADIO_SIZE = 50
+        /** The longest a Spotify-seeded batch waits for the saved Spotify session to come back. */
+        private const val SPOTIFY_RESTORE_WAIT_MS = 15_000L
+        /** A wave started from the likes picks its seed among the latest ones. */
+        private const val LIKED_SEEDS = 50
+        private const val WAVE_HEARD_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
+        private const val WAVE_HEARD_LIMIT = 300
         private const val PODCAST_FEED_TTL_MS = 6L * 60 * 60 * 1000
         private const val YOUTUBE_PAGE_TTL_MS = 24L * 60 * 60 * 1000
         private const val SEARCH_DEBOUNCE_MS = 250L
         const val TRACKS_SPOTIFY = "spotify"
         const val TRACKS_YOUTUBE = "youtube"
+        const val TRACKS_SOUNDCLOUD = "soundcloud"
+        private const val KEY_SOUNDCLOUD_PROFILE = "soundcloud_profile"
+        private const val KEY_SOUNDCLOUD_PLAYLISTS = "soundcloud_playlists"
+        private const val SOUNDCLOUD_PAGE_TTL_MS = 24L * 60 * 60 * 1000
         const val TRACKS_FILES = "files"
         private const val KEY_GUEST = "guest"
         private const val KEY_PENDING_LIKES = "pending_likes"

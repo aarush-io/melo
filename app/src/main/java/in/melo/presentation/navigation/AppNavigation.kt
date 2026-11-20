@@ -50,7 +50,7 @@ fun AppNavigation(
     NavHost(
         navController = navController,
         startDestination = when (defaultTab) {
-            AppSettings.TAB_SEARCH -> Screen.Search.route
+            AppSettings.TAB_MY_WAVE -> Screen.MyWave.route
             AppSettings.TAB_EXPLORE -> Screen.Explore.route
             AppSettings.TAB_LIBRARY -> Screen.Library.route
             AppSettings.TAB_PODCASTS -> Screen.Podcasts.route
@@ -63,6 +63,7 @@ fun AppNavigation(
     ) {
         composable(Screen.Home.route) { HomeScreen(model, navController, paddingValues) }
         composable(Screen.Explore.route) { YouTubeExploreScreen(model, navController, paddingValues) }
+        composable(Screen.MyWave.route) { `in`.melo.presentation.screens.MyWaveScreen(model, navController, paddingValues) }
         composable(Screen.Search.route) { SearchScreen(model, navController, paddingValues, onSearchBarActiveChange) }
         composable(Screen.Library.route) { LibraryScreen(model, navController, paddingValues) }
         composable(Screen.Podcasts.route) { `in`.melo.presentation.screens.PodcastsScreen(model, navController, paddingValues) }

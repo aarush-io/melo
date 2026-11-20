@@ -69,7 +69,8 @@ fun AddTracksSheet(
     val remote = target != `in`.melo.data.PlaylistKind.MultiService
     val sources = buildList {
         if (discovery.spotifyEnabled && target != `in`.melo.data.PlaylistKind.YouTubeMusic) add(MeloModel.TRACKS_SPOTIFY to R.string.search_source_spotify)
-        if (target != `in`.melo.data.PlaylistKind.Spotify) add(MeloModel.TRACKS_YOUTUBE to R.string.search_source_youtube)
+        if (target != `in`.melo.data.PlaylistKind.Spotify) add(MeloModel.TRACKS_YOUTUBE to R.string.search_source_youtube_short)
+        if (target == `in`.melo.data.PlaylistKind.MultiService) add(MeloModel.TRACKS_SOUNDCLOUD to R.string.search_source_soundcloud)
         if (target != `in`.melo.data.PlaylistKind.YouTubeMusic) add(MeloModel.TRACKS_FILES to R.string.library_tab_local)
     }
     var source by remember { mutableStateOf(sources.first().first) }
@@ -101,7 +102,9 @@ fun AddTracksSheet(
             if (sources.size > 1) SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 sources.forEachIndexed { index, (key, label) ->
                     SegmentedButton(selected = source == key, onClick = { source = key },
-                        shape = SegmentedButtonDefaults.itemShape(index, sources.size)) { Text(stringResource(label), maxLines = 1) }
+                        shape = SegmentedButtonDefaults.itemShape(index, sources.size)) {
+                        Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())

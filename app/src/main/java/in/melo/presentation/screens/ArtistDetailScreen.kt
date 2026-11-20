@@ -297,7 +297,7 @@ fun ArtistDetailScreen(
                     DetailActionsRow(
                         item = current,
                         canSave = current.source == `in`.melo.data.MusicSource.Spotify,
-                        showRadio = current.source == `in`.melo.data.MusicSource.Spotify,
+                        showRadio = current.source == `in`.melo.data.MusicSource.Spotify || current.source == `in`.melo.data.MusicSource.SoundCloud,
                         isSaved = current.id in saved,
                         isPinned = pins.any { it.id == current.id },
                         onSave = { model.toggleFavorite(current) },

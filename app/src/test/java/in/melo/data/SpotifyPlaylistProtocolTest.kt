@@ -24,11 +24,10 @@ class SpotifyPlaylistProtocolTest {
     }
     @Test fun oldBackupsKeepBoundedQueueAndSettingsRoundTrip() {
         val migrated = AppSettings.fromJson(JSONObject("{\"preloadTracks\":2}"))
-        assertFalse(migrated.preloadEntireQueue)
         assertEquals(10, AppSettings.fromJson(JSONObject("{\"preloadEntireQueue\":true,\"preloadTracks\":100}")).preloadTracks)
         assertFalse(migrated.preloadOnMobile)
         assertFalse(migrated.offlineMode)
-        val chosen = migrated.copy(preloadEntireQueue = false, preloadTracks = 20, preloadOnMobile = false, offlineMode = true)
+        val chosen = migrated.copy(preloadTracks = 20, preloadOnMobile = false, offlineMode = true)
         assertEquals(chosen, AppSettings.fromJson(chosen.toJson()))
         val invalid = AppSettings.fromJson(JSONObject("{\"audioCacheLimitMb\":-1,\"preloadTracks\":1000000}"))
         assertEquals(512, invalid.audioCacheLimitMb)

@@ -2,8 +2,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="album_cover_for">Couverture de %1$s</string>
     <string name="album_detail_meta_line">%1$s · %2$s</string>
-    <string name="artist_picker_count_multiple">%1$d artistes</string>
-    <string name="artist_picker_count_single">1 artiste</string>
+    <plurals name="artist_picker_count">
+        <item quantity="one">%d artiste</item>
+        <item quantity="many">%d d\'artistes</item>
+        <item quantity="other">%d artistes</item>
+    </plurals>
     <string name="artist_picker_primary_label">Artiste principal</string>
     <string name="artist_picker_shortcut_label">Page de l\'artiste</string>
     <string name="artist_picker_title">Choisir un artiste</string>
@@ -209,6 +212,20 @@
     <string name="lyrics_synced_badge">SYNCHRONISÉ</string>
     <string name="lyrics_title">Paroles</string>
     <string name="nav_bar_home">Accueil</string>
+    <string name="nav_bar_my_wave">Ma vague</string>
+    <string name="my_wave_subtitle">Une musique sans fin dans l’esprit du titre en cours</string>
+    <string name="my_wave_hint">Appuyez sur le bouton pour une musique sans fin proche de ce que vous écoutez</string>
+    <string name="my_wave_from_track">Inspirée de « %1$s »</string>
+    <string name="my_wave_from_history">Inspirée de vos écoutes récentes</string>
+    <string name="my_wave_from_likes">Inspirée de vos titres aimés</string>
+    <string name="my_wave_from_mood">Choisie pour ce moment de la journée</string>
+    <string name="my_wave_play">Lancer Ma vague</string>
+    <string name="my_wave_pause">Mettre Ma vague en pause</string>
+    <string name="my_wave_shake">Recommencer</string>
+    <string name="my_wave_next_title">À suivre</string>
+    <string name="my_wave_loading">Recherche de titres…</string>
+    <string name="my_wave_offline">Ma vague a besoin d’une connexion Internet.</string>
+    <string name="my_wave_failed">Aucun titre similaire trouvé. Lancez un titre et réessayez.</string>
     <string name="nav_bar_library">Bibliothèque</string>
     <string name="nav_bar_search">Recherche</string>
     <string name="player_cd_cast">Diffuser</string>

@@ -306,13 +306,13 @@
     <string name="playlist_exported">Playlist exported</string>
     <string name="playlist_import">Import a playlist</string>
     <string name="import_from_file">CSV file exported by Melo</string>
-    <string name="import_from_link">YouTube, YouTube Music or Spotify link</string>
+    <string name="import_from_link">YouTube, YouTube Music, Spotify or SoundCloud link</string>
     <string name="import_link_label">Playlist link</string>
     <string name="import_action">Import</string>
     <string name="import_running">Importing…</string>
     <string name="import_done">“%1$s” imported: %2$d tracks</string>
     <string name="import_no_tracks">No tracks to import.</string>
-    <string name="import_unknown_link">This link is not a YouTube, YouTube Music or Spotify playlist.</string>
+    <string name="import_unknown_link">This link is not a YouTube, YouTube Music, Spotify or SoundCloud playlist.</string>
     <string name="import_default_name">Imported playlist</string>
     <string name="import_failed">This playlist could not be imported.</string>
     <string name="settings_source_badges_title">Source badges</string>
@@ -475,7 +475,7 @@
     <string name="queue_section_queued">Next in queue</string>
     <string name="queue_section_next_from">Next from: %1$s</string>
     <string name="settings_search_sources_title">Choose the search source</string>
-    <string name="settings_search_sources_subtitle">Shows All, Spotify, YouTube and Device above the results. Hidden, every search reads all sources.</string>
+    <string name="settings_search_sources_subtitle">Shows All, Spotify, YouTube, SoundCloud and Device above the results. Hidden, every search reads all sources.</string>
     <string name="settings_privacy_title">Privacy</string>
     <string name="settings_privacy_subtitle">Usage analytics and data collection</string>
     <string name="settings_analytics_title">Share usage analytics</string>
