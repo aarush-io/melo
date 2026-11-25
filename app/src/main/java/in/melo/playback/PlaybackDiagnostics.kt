@@ -26,9 +26,13 @@ internal object PlaybackDiagnostics : AnalyticsListener {
         val status = causes.filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()?.responseCode
         lastError = "$kind:${(error as? PlaybackException)?.errorCodeName.orEmpty()}:${causes.joinToString(">") { it.javaClass.simpleName }}:http=${status ?: 0}"
         Log.w("MeloAudio", lastError!!)
-        // Messages are Melo's own for these types; others may carry addresses.
-        val reason = causes.lastOrNull { it is `in`.melo.data.SpotifyFailure }?.message
-        `in`.melo.data.diagnostics.DiagnosticLog.record("player", lastError + (reason?.let { " \"$it\"" } ?: ""))
+        // Messages are Melo's own for these types; others may carry addresses. A YouTube failure's
+        // status (NO_MATCH, LOGIN_REQUIRED, NO_AUDIO_FORMAT...) names the step that refused the track.
+        val youtube = causes.lastOrNull { it is `in`.melo.data.youtube.YouTubeFailure } as? `in`.melo.data.youtube.YouTubeFailure
+        val reason = (causes.lastOrNull { it is `in`.melo.data.SpotifyFailure } ?: youtube)?.message
+            ?.let(`in`.melo.data.diagnostics.DiagnosticLog::scrub)
+        val step = youtube?.status?.let { " status=$it" }.orEmpty()
+        `in`.melo.data.diagnostics.DiagnosticLog.record("player", lastError + step + (reason?.let { " \"$it\"" } ?: ""))
     }
     override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) = failure("player", error)
     override fun onAudioSinkError(eventTime: AnalyticsListener.EventTime, audioSinkError: Exception) = failure("sink", audioSinkError)
