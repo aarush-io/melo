@@ -67,9 +67,17 @@ internal class SpotifyCatalog(
     /** Metadata already on the device, so only what is new gets requested. */
     fun seed(items: List<Music>) = items.forEach { if (it.title.isNotEmpty()) musicCache.putIfAbsent(it.id, it) }
 
-    suspend fun hydrate(uris: List<String>): List<Music> = coroutineScope {
+    /**
+     * Metadata already on the device wins, except when [includeArtwork] asks for another look at
+     * tracks that were read without their cover (the public embed fallback stores tracks that way).
+     * A refused request leaves the cached track in place, so a playlist never loses rows.
+     */
+    suspend fun hydrate(uris: List<String>, includeArtwork: Boolean = false): List<Music> = coroutineScope {
         val valid = uris.mapNotNull(::canonicalMusicUri)
-        val missing = valid.distinct().filter { musicCache[it] == null }
+        val missing = valid.distinct().filter { uri ->
+            val cached = musicCache[uri]
+            cached == null || (includeArtwork && cached.imageUrl == null && metadataKind(uri) != null)
+        }
         val background = kotlin.coroutines.coroutineContext[BackgroundRequestsKey] != null
         if (background && missing.isNotEmpty() && android.os.SystemClock.elapsedRealtime() < backgroundPausedUntil) {
             throw SpotifyFailure("Spotify metadata: paused after refusals.")
@@ -266,13 +274,16 @@ internal class SpotifyCatalog(
             .addQueryParameter("length", PLAYLIST_PAGE.toString())
             .addQueryParameter("decorate", "revision,attributes,length,owner,capabilities,status_code")
             .build()
+        var usedPublicFallback = false
         val decoded = try {
             decodePlaylistPage(authenticatedSpotifyRequest(transport, session, url, "Spotify playlist"), item)
         } catch (failure: SpotifyFailure) {
             if (!playlistFallbackApplies(failure)) throw failure
+            usedPublicFallback = true
             fallbackPlaylistPage(uri, from, item, failure)
         }
-        hydrate(decoded.uris)
+        // The public fallback seeds tracks without art; ask metadata again for their covers when it was used.
+        hydrate(decoded.uris, includeArtwork = usedPublicFallback)
         // Keep the playlist's order, local file references included.
         val tracks = decoded.entries.mapNotNull { entry -> spotifyLocalTrack(entry) ?: musicCache[entry] }
         val artwork = decoded.item.imageUrl ?: playlistMosaic(tracks)

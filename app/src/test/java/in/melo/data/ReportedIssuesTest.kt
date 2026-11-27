@@ -101,6 +101,17 @@ class ReportedIssuesTest {
     }
 
     @Test
+    fun importedPlaylistKeepsItsCoverAndTrackArt() {
+        val cover = "https://mosaic.scdn.co/640/abcdef"
+        val track = Music("spotify:track:0000000000000000000002", "Song", "Artist", MusicKind.Track,
+            imageUrl = "https://i.scdn.co/image/ab67616d0000b273000000000000000000000000")
+        val playlist = LocalPlaylist("${LOCAL_PLAYLIST_PREFIX}imported", "Imported", listOf(track), cover = cover)
+        val stored = decodeLocalPlaylists(encodeLocalPlaylists(listOf(playlist))).single()
+        assertEquals(cover, stored.asMusic().imageUrl)
+        assertEquals(track.imageUrl, stored.tracks.single().imageUrl)
+    }
+
+    @Test
     fun mixedSearchPutsTheClosestNameFirstAndShowsATrackOnce() {
         val spotifyArtist = Music("spotify:artist:0000000000000000000001", "Daft Punk", "Artist", MusicKind.Artist)
         val spotifyTrack = Music("spotify:track:0000000000000000000002", "One More Time", "Daft Punk", MusicKind.Track)
