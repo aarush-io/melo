@@ -89,5 +89,50 @@ class SpotifyCatalogTest {
         assertFalse(spotifyArtwork("http://i.scdn.co/image/a") != null)
     }
 
+    @Test
+    fun extendedMetadataRequestsCarryTheMarketAndAFreshSalt() {
+        val url = extendedMetadataUrl("IN", 42)
+        assertEquals("spclient.wg.spotify.com", url.host)
+        assertEquals("/extended-metadata/v0/extended-metadata", url.encodedPath)
+        assertEquals("0", url.queryParameter("product"))
+        assertEquals("IN", url.queryParameter("country"))
+        assertEquals("42", url.queryParameter("salt"))
+        assertNull(extendedMetadataUrl("", 42).queryParameter("country"))
+    }
+
+    @Test
+    fun aFiveHundredEntityStatusIsAServerFailureButAnUnavailableReleaseIsNot() {
+        fun response(vararg statuses: Pair<Int, String>) = proto {
+            writeByteArray(2, proto {
+                writeByteArray(1, proto { writeInt32(1, 200) })
+                writeInt32(2, 10)
+                statuses.forEach { (status, uri) ->
+                    writeByteArray(3, proto {
+                        writeByteArray(1, proto { writeInt32(1, status) })
+                        writeString(2, uri)
+                    })
+                }
+            })
+        }
+        assertEquals(setOf(first), metadataServerFailures(response(502 to first)))
+        assertEquals(setOf(first), metadataServerFailures(response(200 to second, 503 to first)))
+        assertTrue(metadataServerFailures(response(403 to first, 404 to second)).isEmpty())
+        assertTrue(metadataServerFailures(response(200 to first, 200 to second)).isEmpty())
+    }
+
+    @Test
+    fun aFiveHundredProviderStatusFailsTheWholeArray() {
+        fun response(provider: Int) = proto {
+            writeByteArray(2, proto {
+                writeByteArray(1, proto { writeInt32(1, provider) })
+                writeInt32(2, 10)
+            })
+        }
+        assertTrue(metadataProviderFailure(response(500)))
+        assertTrue(metadataProviderFailure(response(503)))
+        assertFalse(metadataProviderFailure(response(200)))
+        assertFalse(metadataProviderFailure(response(403)))
+    }
+
     private fun gid(number: Int) = ByteArray(16).also { it[15] = number.toByte() }
 }

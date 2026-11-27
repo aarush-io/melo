@@ -581,6 +581,7 @@ private fun LikedTab(
 ) {
     val stable by ui.stablePlayerState.collectAsStateWithLifecycle()
     val saved by model.favorites.collectAsStateWithLifecycle()
+    val library by model.library.collectAsStateWithLifecycle()
     val matchingTracks = remember(content.savedTracks, searchQuery) { content.savedTracks.matchingLibrarySearch(searchQuery) }
     val songs = remember(matchingTracks, saved) { matchingTracks.map { it.toSong(it.id in saved) } }
     var selected by remember { mutableStateOf<Song?>(null) }
@@ -594,6 +595,18 @@ private fun LikedTab(
     }
     if (searchQuery.isNotBlank() && songs.isEmpty() && content.savedTracksLoaded < content.savedTrackUris.size) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    } else if (searchQuery.isBlank() && songs.isEmpty() && content.savedTrackUris.isNotEmpty() &&
+        library.error != null && !library.loading) {
+        // The saved-track URIs are known but Spotify refused their metadata: say so and retry,
+        // instead of leaving an empty list that looks like an empty library.
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            ListeningStatusCard(
+                stringResource(R.string.melo_library_error_title),
+                library.error ?: stringResource(R.string.lib_unavailable),
+                stringResource(R.string.melo_retry), model::refreshLibrary,
+                Modifier.padding(24.dp),
+            )
+        }
     } else {
         LazyColumn(
             state = listState,
