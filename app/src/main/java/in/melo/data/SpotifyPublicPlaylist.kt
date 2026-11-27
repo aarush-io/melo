@@ -51,17 +51,25 @@ internal object SpotifyPublicPlaylist {
         val tracks = (0 until (list?.length() ?: 0)).mapNotNull { list?.optJSONObject(it) }.mapNotNull { row ->
             val uri = row.optString("uri")
             spotifyLocalTrack(uri) ?: canonicalMusicUri(uri)?.takeIf { it.startsWith("spotify:track:") }?.let { id ->
+                // Playlist rows normally carry no art; read it when the page does supply one.
+                val art = spotifyArtwork(row.optString("image").takeIf(String::isNotBlank))
+                    ?: spotifyArtwork(row.optJSONObject("coverArt")?.optJSONArray("sources")?.optJSONObject(0)?.optString("url"))
                 Music(id = id, title = row.optString("title"), subtitle = row.optString("subtitle"), kind = MusicKind.Track,
-                    durationMs = row.optInt("duration"))
+                    imageUrl = art, durationMs = row.optInt("duration"))
             }
         }
         val sources = entity.optJSONObject("coverArt")?.optJSONArray("sources")
-        val image = sources?.optJSONObject(0)?.optString("url")?.takeIf(String::isNotBlank)
+        val image = spotifyArtwork(sources?.optJSONObject(0)?.optString("url")?.takeIf(String::isNotBlank))
         val name = entity.optString("name").ifBlank { entity.optString("title") }
+        // A track embed has no coverArt: its album art is under visualIdentity.image.
+        val visual = entity.optJSONObject("visualIdentity")?.optJSONArray("image")
+        val trackImage = image ?: (0 until (visual?.length() ?: 0)).mapNotNull { visual?.optJSONObject(it) }
+            .maxByOrNull { it.optInt("maxWidth") * it.optInt("maxHeight") }
+            ?.optString("url")?.takeIf(String::isNotBlank)?.let(::spotifyArtwork)
         val directTrack = entity.optString("uri").takeIf { it.startsWith("spotify:track:") }
             ?.let(::canonicalMusicUri)?.let { id ->
                 Music(id = id, title = name, subtitle = entity.optString("subtitle"), kind = MusicKind.Track,
-                    imageUrl = image, durationMs = entity.optInt("duration"))
+                    imageUrl = trackImage, durationMs = entity.optInt("duration"))
             }
         return Content(name, image, tracks.ifEmpty { listOfNotNull(directTrack) })
     }

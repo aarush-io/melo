@@ -2900,7 +2900,7 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
     suspend fun importLink(link: String): Music {
         `in`.melo.data.youtube.youTubePlaylistId(link)?.let { id ->
             val playlist = withContext(Dispatchers.IO) { `in`.melo.data.youtube.YouTubeMusic.playlist(id) }
-            return createImported(playlist.title, playlist.tracks)
+            return createImported(playlist.title, playlist.tracks, playlist.imageUrl)
         }
         val spotifyId = `in`.melo.data.spotifyPlaylistId(link)
             ?: throw IllegalArgumentException(app.getString(`in`.melo.R.string.import_unknown_link))
@@ -2908,11 +2908,16 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         if (source != null) {
             val item = Music("spotify:playlist:$spotifyId", "", "", MusicKind.Playlist)
             val detail = fullDetail(source, item, pageLimit = Int.MAX_VALUE)
-            return createImported(detail.item.title.ifBlank { "Spotify" }, detail.tracks)
+            return createImported(
+                detail.item.title.ifBlank { "Spotify" },
+                completeSpotifyTracks(detail.tracks),
+                `in`.melo.data.spotifyArtwork(detail.item.imageUrl),
+            )
         }
         val content = withContext(Dispatchers.IO) { `in`.melo.data.SpotifyPublicPlaylist.read(spotifyId) }
         if (content.tracks.isEmpty()) throw IllegalArgumentException(app.getString(`in`.melo.R.string.import_no_tracks))
-        return createImported(content.name.ifBlank { "Spotify" }, content.tracks)
+        // Without an account the embed page has no per-track art; keep the playlist cover at least.
+        return createImported(content.name.ifBlank { "Spotify" }, content.tracks, content.imageUrl)
     }
 
     /** Resolves a Spotify share link before Melo opens its detail page or starts its track. */
@@ -2938,15 +2943,18 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
         val source = catalog ?: return tracks
         val ids = tracks.filter { it.id.startsWith("spotify:track:") && it.imageUrl == null }.map(Music::id)
         if (ids.isEmpty() || !online.value) return tracks
-        val known = try { source.hydrate(ids).associateBy(Music::id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { emptyMap() }
+        val known = try { source.hydrate(ids, includeArtwork = true).associateBy(Music::id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { emptyMap() }
         return tracks.map { known[it.id] ?: it }
     }
 
-    private fun createImported(name: String, tracks: List<Music>): Music {
+    /** An imported playlist keeps the source cover, so its card is not blank before tracks get theirs. */
+    private fun createImported(name: String, tracks: List<Music>, cover: String? = null): Music {
         val playlist = localPlaylistStore.create(name.ifBlank { app.getString(`in`.melo.R.string.import_default_name) }, withLocalFiles(tracks))
-        val music = playlist.asMusic()
+        if (cover != null) localPlaylistStore.setCover(playlist.id, cover)
+        val stored = localPlaylistStore.get(playlist.id) ?: playlist
+        val music = stored.asMusic()
         ui.register(music)
-        mutableMessage.value = app.getString(`in`.melo.R.string.import_done, music.title, playlist.tracks.size)
+        mutableMessage.value = app.getString(`in`.melo.R.string.import_done, music.title, stored.tracks.size)
         return music
     }
 

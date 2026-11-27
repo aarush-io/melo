@@ -144,6 +144,36 @@ class MultiServiceTest {
         val content = checkNotNull(SpotifyPublicPlaylist.parse("""<html><script id="__NEXT_DATA__" type="application/json">$data</script></html>"""))
         assertEquals("Mix", content.name)
         assertEquals(listOf("spotify:track:4uLU6hMCjMI75M1A2tKUQC", "spotify:local:A:B:Local:5"), content.tracks.map(Music::id))
+        assertNull(content.tracks.first().imageUrl)
+    }
+
+    @Test fun spotifyEmbedPagesKeepArtworkWhenThePageSuppliesIt() {
+        val cover = "https://image-cdn-ak.spotifycdn.com/image/ab67706f00000002abc"
+        val rowArt = "https://i.scdn.co/image/ab67616d0000b273def"
+        val entity = JSONObject().put("name", "Mix")
+            .put("coverArt", JSONObject().put("sources", org.json.JSONArray().put(JSONObject().put("url", cover))))
+            .put("trackList", org.json.JSONArray().put(JSONObject()
+                .put("uri", "spotify:track:4uLU6hMCjMI75M1A2tKUQC").put("title", "Song").put("subtitle", "Artist")
+                .put("image", rowArt).put("duration", 1000)))
+        val data = JSONObject().put("props", JSONObject().put("pageProps", JSONObject().put("state", JSONObject().put("data",
+            JSONObject().put("entity", entity)))))
+        val content = checkNotNull(SpotifyPublicPlaylist.parse("""<html><script id="__NEXT_DATA__" type="application/json">$data</script></html>"""))
+        assertEquals(cover, content.imageUrl)
+        assertEquals(rowArt, content.tracks.single().imageUrl)
+    }
+
+    @Test fun spotifyTrackEmbedUsesVisualIdentityWhenCoverArtIsAbsent() {
+        val small = "https://image-cdn-ak.spotifycdn.com/image/ab67616d0000b273small"
+        val large = "https://image-cdn-ak.spotifycdn.com/image/ab67616d0000b273large"
+        val entity = JSONObject().put("name", "Song").put("subtitle", "Artist").put("duration", 1000)
+            .put("uri", "spotify:track:4uLU6hMCjMI75M1A2tKUQC")
+            .put("visualIdentity", JSONObject().put("image", org.json.JSONArray()
+                .put(JSONObject().put("url", small).put("maxWidth", 64).put("maxHeight", 64))
+                .put(JSONObject().put("url", large).put("maxWidth", 640).put("maxHeight", 640))))
+        val data = JSONObject().put("props", JSONObject().put("pageProps", JSONObject().put("state", JSONObject().put("data",
+            JSONObject().put("entity", entity)))))
+        val content = checkNotNull(SpotifyPublicPlaylist.parse("""<html><script id="__NEXT_DATA__" type="application/json">$data</script></html>"""))
+        assertEquals(large, content.tracks.single().imageUrl)
     }
 
     // InnerTube parsing --------------------------------------------------------------------------
