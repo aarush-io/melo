@@ -955,7 +955,11 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
             catch (failure: Exception) {
                 `in`.melo.data.diagnostics.DiagnosticLog.record("library", "${failure.javaClass.simpleName} \"${readable(failure)}\"")
                 // What was last read stays on screen, without an error for what the connection prevented.
-                mutableLibrary.update { it.copy(loading = false, error = if (it.content == null) readable(failure) else null) }
+                // An empty Liked Songs with known saved URIs is not "what was last read": say why it is empty.
+                mutableLibrary.update {
+                    val emptyLiked = it.content?.let { content -> content.savedTracks.isEmpty() && content.savedTrackUris.isNotEmpty() } == true
+                    it.copy(loading = false, error = if (it.content == null || emptyLiked) readable(failure) else null)
+                }
             }
         }
     }
@@ -1158,8 +1162,20 @@ class MeloModel(private val app: Application) : AndroidViewModel(app) {
                     val saved = mutableLibrary.value.content
                     val from = page?.toIntOrNull() ?: 0
                     val uris = saved?.savedTrackUris.orEmpty()
-                    val tracks = if (from == 0) saved?.savedTracks.orEmpty() else source.hydrate(uris.drop(from).take(100))
-                    val next = if (from == 0) saved?.savedTracksLoaded ?: tracks.size else from + 100
+                    val stored = saved?.savedTracks.orEmpty()
+                    // The first library sync can fail while Spotify's metadata service refuses every
+                    // entity. Opening Liked Songs asks once more, foreground, instead of staying empty.
+                    val firstPageRecovery = from == 0 && stored.isEmpty() && uris.isNotEmpty()
+                    val tracks = when {
+                        from > 0 -> source.hydrate(uris.drop(from).take(100))
+                        firstPageRecovery -> source.hydrate(uris.take(100))
+                        else -> stored
+                    }
+                    val next = when {
+                        from > 0 -> from + 100
+                        firstPageRecovery -> minOf(100, uris.size)
+                        else -> saved?.savedTracksLoaded ?: tracks.size
+                    }
                     CatalogDetail(item.copy(note = "${saved?.savedTrackCount ?: 0} saved tracks"), tracks,
                         nextPage = next.takeIf { it < uris.size }?.toString(), total = saved?.savedTrackCount ?: 0)
                 } else if (more) source.detail(item, page)

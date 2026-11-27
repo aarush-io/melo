@@ -165,11 +165,14 @@ internal class SpotifyCatalog(
     private suspend fun fetchMetadata(uris: List<String>, background: Boolean): Unit = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
         fun mostlyMissing(missing: List<String>) = missing.isNotEmpty() && missing.size * 2 >= uris.size
         // A server error is a batch refused as a whole: the native core may still read it.
-        var missing = try { requestMetadata(uris, catalogue = null) }
+        var batch = try { requestMetadata(uris, catalogue = null) }
         catch (failure: SpotifyFailure) {
-            if (failure is SpotifyAuthRequired || failure is SpotifyRateLimited || failure.status == null || nativeMetadata == null || background) throw failure
-            uris
+            if (failure is SpotifyAuthRequired || failure is SpotifyRateLimited || failure.status == null || background) throw failure
+            // Without the native reader, a 5xx still deserves the catalogue retry below.
+            if (nativeMetadata == null && failure.status !in 500..599) throw failure
+            MetadataBatch(uris, serverFailure = failure.status in 500..599)
         }
+        var missing = batch.missing
         // A few missing items are unavailable releases. Most of a batch missing means the service refused it:
         // ask again stating the account's catalogue, as the request header allows.
         if (!mostlyMissing(missing)) { backgroundPauseMs = MIN_BACKGROUND_PAUSE_MS; return@withContext }
@@ -179,16 +182,27 @@ internal class SpotifyCatalog(
             catch (_: java.io.IOException) { null }
         val catalogue = attributes?.get("catalogue")?.takeIf(String::isNotBlank)
         if (catalogue != null) {
-            val still = try { requestMetadata(missing, catalogue) } catch (failure: SpotifyFailure) {
+            val retry = try { requestMetadata(missing, catalogue) } catch (failure: SpotifyFailure) {
                 if (failure is SpotifyAuthRequired || failure is SpotifyRateLimited) throw failure
-                missing
+                MetadataBatch(missing, serverFailure = failure.status in 500..599)
             }
-            if (still.size < missing.size) {
-                `in`.melo.data.diagnostics.DiagnosticLog.record("metadata", "recovered=${missing.size - still.size} of ${missing.size} with catalogue=$catalogue")
+            if (retry.missing.size < missing.size) {
+                `in`.melo.data.diagnostics.DiagnosticLog.record("metadata", "recovered=${missing.size - retry.missing.size} of ${missing.size} with catalogue=$catalogue")
             }
-            missing = still
+            missing = retry.missing
+            batch = retry
         }
         if (!mostlyMissing(missing)) return@withContext
+        if (batch.serverFailure && nativeMetadata == null) {
+            // A failed page is not a read page: the library keeps its cursor and asks again later
+            // instead of skipping these tracks for good.
+            if (background) {
+                backgroundPausedUntil = android.os.SystemClock.elapsedRealtime() + backgroundPauseMs
+                `in`.melo.data.diagnostics.DiagnosticLog.record("metadata", "background paused ${backgroundPauseMs / 1000}s after a server failure")
+                backgroundPauseMs = minOf(backgroundPauseMs * 2, MAX_BACKGROUND_PAUSE_MS)
+            }
+            throw SpotifyFailure("Spotify metadata is unavailable. Try again.", 502)
+        }
         if (background) {
             // The sync waits; what the user opens still goes through, with the native fallback.
             backgroundPausedUntil = android.os.SystemClock.elapsedRealtime() + backgroundPauseMs
@@ -207,6 +221,8 @@ internal class SpotifyCatalog(
         `in`.melo.data.diagnostics.DiagnosticLog.record("metadata", "native recovered=${read.size} of ${missing.size}")
     }
 
+    private class MetadataBatch(val missing: List<String>, val serverFailure: Boolean)
+
     private fun keep(uri: String, bytes: ByteArray) {
         metadataCache[uri] = bytes
         val entity = Proto(bytes)
@@ -222,8 +238,30 @@ internal class SpotifyCatalog(
         }
     }
 
-    /** One Extended Metadata batch. Returns the URIs the service did not describe. */
-    private suspend fun requestMetadata(uris: List<String>, catalogue: String?): List<String> {
+    /** One Extended Metadata batch. Returns what the service did not describe. */
+    private suspend fun requestMetadata(uris: List<String>, catalogue: String?): MetadataBatch {
+        var response = postMetadata(uris, catalogue)
+        var decoded = decodeMetadataExtensions(response)
+        var failed = metadataServerFailures(response)
+        var providerFailed = metadataProviderFailure(response)
+        // A 5xx per-entity status is the metadata provider failing, not an unavailable release.
+        // Retry the batch once under a fresh salt: Spotify can serve the same failure for one URL.
+        if (decoded.isEmpty() && (failed.isNotEmpty() || providerFailed)) {
+            kotlinx.coroutines.delay(METADATA_SERVER_RETRY_MS)
+            response = postMetadata(uris, catalogue)
+            decoded = decodeMetadataExtensions(response)
+            failed = metadataServerFailures(response)
+            providerFailed = metadataProviderFailure(response)
+            `in`.melo.data.diagnostics.DiagnosticLog.record("metadata",
+                "server retry recovered=${decoded.size} of ${uris.size}")
+        }
+        decoded.forEach { (uri, bytes) -> keep(uri, bytes) }
+        val missing = uris.filter { metadataKind(it) != null && it !in decoded }
+        if (missing.isNotEmpty()) recordMissingMetadata(response, uris.size, missing.size, catalogue)
+        return MetadataBatch(missing, serverFailure = providerFailed || missing.any { it in failed })
+    }
+
+    private suspend fun postMetadata(uris: List<String>, catalogue: String?): ByteArray {
         val body = proto {
             if (catalogue != null) writeByteArray(1, proto { writeString(2, catalogue) })
             uris.forEach { uri ->
@@ -234,16 +272,25 @@ internal class SpotifyCatalog(
                 })
             }
         }
-        val response = authenticatedSpotifyRequest(
-            transport, session, spotifyUrl("extended-metadata/v0/extended-metadata"),
-            "Spotify metadata", body,
-        )
-        val decoded = decodeMetadataExtensions(response)
-        decoded.forEach { (uri, bytes) -> keep(uri, bytes) }
-        val missing = uris.filter { metadataKind(it) != null && it !in decoded }
-        if (missing.isNotEmpty()) recordMissingMetadata(response, uris.size, missing.size, catalogue)
-        return missing
+        return try {
+            authenticatedSpotifyRequest(
+                transport, session, extendedMetadataUrl(metadataCountry()),
+                "Spotify metadata", body,
+            )
+        } catch (failure: SpotifyFailure) {
+            if (failure.status == null || failure.status !in 500..599) throw failure
+            kotlinx.coroutines.delay(METADATA_SERVER_RETRY_MS)
+            authenticatedSpotifyRequest(
+                transport, session, extendedMetadataUrl(metadataCountry()),
+                "Spotify metadata", body,
+            )
+        }
     }
+
+    /** The account's market, or the device's when the attributes do not name one. */
+    private fun metadataCountry(): String? =
+        session.lastAttributes?.get("country")?.takeIf { it.length == 2 }
+            ?: java.util.Locale.getDefault().country.takeIf { it.length == 2 }
 
     @Volatile private var lastMissingReport = 0L
     /** Statuses only, at most once every 30 s: enough to tell a refused catalogue from unavailable items. */
@@ -367,7 +414,7 @@ internal class SpotifyCatalog(
             }
         }
         val response = requests.withPermit {
-            authenticatedSpotifyRequest(transport, session, spotifyUrl("extended-metadata/v0/extended-metadata"), "Spotify artist", body)
+            authenticatedSpotifyRequest(transport, session, extendedMetadataUrl(metadataCountry()), "Spotify artist", body)
         }
         return buildMap {
             Proto(response).messages(2).forEach { array ->
@@ -411,6 +458,7 @@ private const val MAX_RELEASES_PER_GROUP = 60
 private const val MAX_APPEARS_ON = 20
 private const val MIN_BACKGROUND_PAUSE_MS = 2 * 60_000L
 private const val MAX_BACKGROUND_PAUSE_MS = 30 * 60_000L
+private const val METADATA_SERVER_RETRY_MS = 400L
 
 /** Statuses for which another way of reading the playlist may succeed: not auth, access, rate limits or a missing list. */
 internal fun playlistFallbackApplies(failure: SpotifyFailure): Boolean =
@@ -419,6 +467,17 @@ internal fun playlistFallbackApplies(failure: SpotifyFailure): Boolean =
 
 internal fun spotifyUrl(path: String): HttpUrl = "https://spclient.wg.spotify.com/".toHttpUrl()
     .newBuilder().addPathSegments(path).build()
+
+/**
+ * Extended Metadata request URL. The official client sends its market and a random salt with
+ * spclient calls; the salt also keeps a failed answer from being served again from the same URL.
+ */
+internal fun extendedMetadataUrl(country: String?, salt: Int = kotlin.random.Random.nextInt()): HttpUrl =
+    spotifyUrl("extended-metadata/v0/extended-metadata").newBuilder()
+        .addQueryParameter("product", "0")
+        .apply { country?.takeIf { it.length == 2 }?.let { addQueryParameter("country", it) } }
+        .addQueryParameter("salt", salt.toString())
+        .build()
 
 internal suspend fun authenticatedSpotifyRequest(
     transport: SpotifyTransport,
@@ -466,6 +525,23 @@ internal fun metadataStatusSummary(response: ByteArray): String = Proto(response
     val entities = array.messages(3).groupingBy { it.message(1)?.number(1) ?: 0 }.eachCount()
     "kind=${array.number(2) ?: "?"} provider=${array.message(1)?.number(1) ?: 0} entities=$entities"
 }.ifEmpty { "arrays=0" }
+
+/** Entity URIs with a 5xx status: the provider failed them, the releases themselves are not unavailable. */
+internal fun metadataServerFailures(response: ByteArray): Set<String> = buildSet {
+    Proto(response).messages(2).forEach array@ { array ->
+        val providerStatus = array.message(1)?.number(1) ?: 0
+        if (providerStatus != 0 && providerStatus != 200) return@array
+        array.messages(3).forEach entity@ { data ->
+            if ((data.message(1)?.number(1) ?: 0) !in 500..599) return@entity
+            data.text(2)?.let(::canonicalMusicUri)?.let(::add)
+        }
+    }
+}
+
+/** A 5xx provider status fails the whole array, so every entity in it counts as missing. */
+internal fun metadataProviderFailure(response: ByteArray): Boolean = Proto(response).messages(2).any { array ->
+    (array.message(1)?.number(1) ?: 0) in 500..599
+}
 
 /** Artist biographies carry HTML links and entities: plain text with paragraphs kept. */
 internal fun cleanBiography(text: String): String {
